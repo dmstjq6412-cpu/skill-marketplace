@@ -17,7 +17,7 @@ app.use(express.json());
 app.use('/api/skills', downloadRouter);
 app.use('/api/skills', skillsRouter);
 
-app.listen(PORT, () => {
-  initDb();
+app.listen(PORT, async () => {
+  await initDb();
   console.log(`Backend running on http://localhost:${PORT}`);
 });

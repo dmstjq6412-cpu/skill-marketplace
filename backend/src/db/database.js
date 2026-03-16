@@ -1,29 +1,26 @@
-import { Low } from 'lowdb';
-import { JSONFileSync } from 'lowdb/node';
-import path from 'path';
+import pg from 'pg';
 import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, '../../data');
-const DB_PATH = path.join(DATA_DIR, 'marketplace.json');
+const { Pool } = pg;
 
-let _db = null;
+let _pool = null;
 
-export function getDb() {
-  if (!_db) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    const adapter = new JSONFileSync(DB_PATH);
-    _db = new Low(adapter, { skills: [], nextId: 1 });
-    _db.read();
+export function getPool() {
+  if (!_pool) {
+    _pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    });
   }
-  return _db;
+  return _pool;
 }
 
-export function initDb() {
-  const db = getDb();
-  if (!db.data.skills) db.data.skills = [];
-  if (!db.data.nextId) db.data.nextId = 1;
-  db.write();
+export async function initDb() {
+  const pool = getPool();
+  const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  await pool.query(schema);
   console.log('Database initialized');
 }
