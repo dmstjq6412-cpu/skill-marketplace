@@ -3,7 +3,10 @@
     "allow": [
       "Bash(curl:*)",
       "Bash(cmd /c \"for /f \\\\\"tokens=5\\\\\" %a in \\('netstat -ano ^| findstr :3001 ^| findstr LISTENING'\\) do taskkill /PID %a /F\" 2>&1 | head -5)",
-      "Bash(powershell -Command \"Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3001 -State Listen\\).OwningProcess -Force\" 2>&1)"
+      "Bash(powershell -Command \"Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3001 -State Listen\\).OwningProcess -Force\" 2>&1)",
+      "Read(//c/Users/임은섭/.claude/skills//**)",
+      "Read(//c/Users/임은섭/.claude/skills/**)",
+      "Bash(cd:*)"
     ]
   }
 }

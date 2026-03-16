@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import AdmZip from 'adm-zip';
 import { getDb } from '../db/database.js';
 import upload from '../middleware/upload.js';
 
@@ -48,6 +49,7 @@ router.get('/', (req, res) => {
     version: s.version,
     author: s.author,
     description: s.description,
+    file_type: s.file_type || 'md',
     downloads: s.downloads,
     created_at: s.created_at,
   }));
@@ -76,8 +78,19 @@ router.post('/', upload.single('skill_file'), (req, res) => {
     return res.status(400).json({ error: 'name, author, and skill_file are required' });
   }
 
+  const isZip = req.file.originalname.endsWith('.zip');
+  let readme = '';
+
+  if (isZip) {
+    const zip = new AdmZip(req.file.path);
+    const entry = zip.getEntry('SKILL.md');
+    if (!entry) return res.status(400).json({ error: 'SKILL.md not found in zip' });
+    readme = entry.getData().toString('utf8');
+  } else {
+    readme = fs.readFileSync(req.file.path, 'utf8');
+  }
+
   const db = getDb();
-  const readme = fs.readFileSync(req.file.path, 'utf8');
   const now = new Date().toISOString();
   const id = db.data.nextId;
 
@@ -89,6 +102,7 @@ router.post('/', upload.single('skill_file'), (req, res) => {
     description,
     readme,
     filename: req.file.filename,
+    file_type: isZip ? 'zip' : 'md',
     downloads: 0,
     created_at: now,
     updated_at: now,

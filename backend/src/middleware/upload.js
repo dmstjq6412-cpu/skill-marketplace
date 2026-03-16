@@ -16,8 +16,8 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (_req, file, cb) => {
-  if (file.originalname.endsWith('.md')) cb(null, true);
-  else cb(new Error('Only .md files are accepted'), false);
+  if (file.originalname.endsWith('.md') || file.originalname.endsWith('.zip')) cb(null, true);
+  else cb(new Error('Only .md or .zip files are accepted'), false);
 };
 
 export default multer({ storage, fileFilter });

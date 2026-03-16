@@ -5,9 +5,10 @@ import ora from 'ora';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import AdmZip from 'adm-zip';
 
 const getApiBase = () =>
-  process.env.SKILL_MARKETPLACE_API || 'http://localhost:3001/api';
+  process.env.SKILL_MARKETPLACE_API || 'https://skill-marketplace-umzq.onrender.com/api';
 
 const install = new Command('install')
   .description('Download and install a skill into ~/.claude/skills/')
@@ -34,8 +35,15 @@ const install = new Command('install')
       const targetDir = path.join(baseDir, skill.name);
       fs.mkdirSync(targetDir, { recursive: true });
 
-      const targetFile = path.join(targetDir, 'SKILL.md');
-      fs.writeFileSync(targetFile, response.data);
+      const isZip = (skill.file_type || 'md') === 'zip';
+
+      if (isZip) {
+        const zip = new AdmZip(Buffer.from(response.data));
+        zip.extractAllTo(targetDir, true);
+      } else {
+        const targetFile = path.join(targetDir, 'SKILL.md');
+        fs.writeFileSync(targetFile, response.data);
+      }
 
       // Save metadata for version tracking
       const metaFile = path.join(targetDir, '.skill-meta.json');
@@ -43,12 +51,14 @@ const install = new Command('install')
         id: skill.id,
         name: skill.name,
         version: skill.version,
+        file_type: skill.file_type || 'md',
         installed_at: new Date().toISOString(),
       }, null, 2));
 
       spinner.succeed(
         chalk.green(`Installed "${skill.name}" v${skill.version}`) +
-        chalk.gray(`\n  → ${targetFile}`)
+        chalk.gray(`\n  → ${targetDir}`) +
+        (isZip ? chalk.dim('  [directory]') : '')
       );
 
       console.log();

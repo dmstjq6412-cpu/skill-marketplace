@@ -3,7 +3,7 @@ import axios from 'axios';
 import chalk from 'chalk';
 
 const getApiBase = () =>
-  process.env.SKILL_MARKETPLACE_API || 'http://localhost:3001/api';
+  process.env.SKILL_MARKETPLACE_API || 'https://skill-marketplace-umzq.onrender.com/api';
 
 const detail = new Command('detail')
   .description('Show full details of a skill')

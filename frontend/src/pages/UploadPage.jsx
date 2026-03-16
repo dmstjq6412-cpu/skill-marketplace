@@ -21,7 +21,7 @@ export default function UploadPage() {
 
   const handleSubmit = async e => {
     e.preventDefault();
-    if (!file) return setError('Please select a .md file');
+    if (!file) return setError('Please select a .md or .zip file');
 
     const formData = new FormData();
     Object.entries(form).forEach(([k, v]) => formData.append(k, v));
@@ -108,7 +108,7 @@ export default function UploadPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Skill File (.md) *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Skill File (.md or .zip) *</label>
             <div
               className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center
                          hover:border-indigo-300 transition-colors cursor-pointer"
@@ -117,7 +117,7 @@ export default function UploadPage() {
               <input
                 id="file-input"
                 type="file"
-                accept=".md"
+                accept=".md,.zip"
                 className="hidden"
                 onChange={e => setFile(e.target.files[0])}
               />
@@ -135,7 +135,7 @@ export default function UploadPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                       d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <p className="text-sm text-gray-500">Click to select a <span className="font-medium">.md</span> file</p>
+                  <p className="text-sm text-gray-500">Click to select a <span className="font-medium">.md</span> file or <span className="font-medium">.zip</span> directory</p>
                 </>
               )}
             </div>

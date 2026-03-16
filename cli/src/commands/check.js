@@ -7,7 +7,7 @@ import path from 'path';
 import os from 'os';
 
 const getApiBase = () =>
-  process.env.SKILL_MARKETPLACE_API || 'http://localhost:3001/api';
+  process.env.SKILL_MARKETPLACE_API || 'https://skill-marketplace-umzq.onrender.com/api';
 
 function compareVersions(a, b) {
   const pa = (a || '0').split('.').map(Number);
