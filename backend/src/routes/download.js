@@ -16,7 +16,8 @@ router.get('/:id/download', (req, res) => {
   db.write();
 
   const filePath = path.join(__dirname, '../storage/skills', skill.filename);
-  res.download(filePath, `${skill.name}.md`);
+  const ext = skill.file_type === 'zip' ? 'zip' : 'md';
+  res.download(filePath, `${skill.name}.${ext}`);
 });
 
 export default router;

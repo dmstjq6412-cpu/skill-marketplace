@@ -129,6 +129,43 @@ export default function SkillDetailPage() {
                 skill-marketplace install {id}
               </code>
             </div>
+
+            {/* Manual install */}
+            <details className="mt-3">
+              <summary className="text-xs text-gray-500 font-medium cursor-pointer hover:text-gray-700 select-none">
+                수동 설치 방법
+              </summary>
+              <div className="mt-2 text-xs text-gray-600 space-y-2">
+                {skill.file_type === 'zip' ? (
+                  <>
+                    <p className="text-gray-500">이 스킬은 프로그램 파일을 포함합니다.</p>
+                    <ol className="space-y-1.5 list-decimal list-inside">
+                      <li>위 <strong>Download</strong> 버튼으로 <code className="bg-gray-100 px-1 rounded">{skill.name}.zip</code> 다운로드</li>
+                      <li>아래 경로에 압축 해제:
+                        <code className="block bg-gray-100 px-2 py-1 rounded mt-1 break-all">~/.claude/skills/{skill.name}/</code>
+                      </li>
+                      <li><code className="bg-gray-100 px-1 rounded">package.json</code>이 있으면 해당 폴더에서 실행:
+                        <code className="block bg-gray-100 px-2 py-1 rounded mt-1">npm install</code>
+                      </li>
+                      <li>Claude Code 재시작 후 <code className="bg-gray-100 px-1 rounded">/{skill.name}</code> 로 사용</li>
+                    </ol>
+                  </>
+                ) : (
+                  <>
+                    <ol className="space-y-1.5 list-decimal list-inside">
+                      <li>위 <strong>Download</strong> 버튼으로 <code className="bg-gray-100 px-1 rounded">{skill.name}.md</code> 다운로드</li>
+                      <li>아래 경로에 폴더 생성:
+                        <code className="block bg-gray-100 px-2 py-1 rounded mt-1 break-all">~/.claude/skills/{skill.name}/</code>
+                      </li>
+                      <li>다운로드한 파일을 아래 경로로 이동:
+                        <code className="block bg-gray-100 px-2 py-1 rounded mt-1 break-all">~/.claude/skills/{skill.name}/SKILL.md</code>
+                      </li>
+                      <li>Claude Code 재시작 후 <code className="bg-gray-100 px-1 rounded">/{skill.name}</code> 로 사용</li>
+                    </ol>
+                  </>
+                )}
+              </div>
+            </details>
           </div>
         </div>
 
