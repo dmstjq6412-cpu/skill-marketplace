@@ -99,7 +99,7 @@ export default function SkillDetailPage() {
             <div className="mt-6 space-y-2">
               <a
                 href={getDownloadUrl(id)}
-                download={`${skill.name}.md`}
+                download={`${skill.name}.${skill.file_type === 'zip' ? 'zip' : 'md'}`}
                 className="flex items-center justify-center gap-2 w-full bg-indigo-600 text-white
                            font-medium py-2.5 rounded-xl hover:bg-indigo-700 transition-colors"
               >

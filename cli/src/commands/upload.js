@@ -40,7 +40,17 @@ const upload = new Command('upload')
       }
       tmpZip = path.join(os.tmpdir(), `${Date.now()}_${path.basename(targetPath)}.zip`);
       const zip = new AdmZip();
-      zip.addLocalFolder(targetPath);
+      const EXCLUDE = new Set(['node_modules', '.git']);
+      const addDir = (dirPath, zipPath) => {
+        for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+          if (EXCLUDE.has(entry.name)) continue;
+          const full = path.join(dirPath, entry.name);
+          const zp = zipPath ? `${zipPath}/${entry.name}` : entry.name;
+          if (entry.isDirectory()) addDir(full, zp);
+          else zip.addFile(zp, fs.readFileSync(full));
+        }
+      };
+      addDir(targetPath, '');
       zip.writeZip(tmpZip);
       uploadPath = tmpZip;
       uploadName = `${path.basename(targetPath)}.zip`;

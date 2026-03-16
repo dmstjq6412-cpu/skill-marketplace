@@ -5,6 +5,7 @@ import ora from 'ora';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { execSync } from 'child_process';
 import AdmZip from 'adm-zip';
 
 const getApiBase = () =>
@@ -40,6 +41,11 @@ const install = new Command('install')
       if (isZip) {
         const zip = new AdmZip(Buffer.from(response.data));
         zip.extractAllTo(targetDir, true);
+        // package.json 있으면 npm install 자동 실행
+        if (fs.existsSync(path.join(targetDir, 'package.json'))) {
+          spinner.text = `Installing dependencies for "${skill.name}"...`;
+          execSync('npm install --silent', { cwd: targetDir, stdio: 'ignore' });
+        }
       } else {
         const targetFile = path.join(targetDir, 'SKILL.md');
         fs.writeFileSync(targetFile, response.data);
