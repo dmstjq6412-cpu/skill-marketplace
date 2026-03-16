@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.sqlite
+.env
+backend/data/
+backend/src/storage/skills/*
+!backend/src/storage/skills/.gitkeep

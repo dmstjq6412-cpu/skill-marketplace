@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: skill-marketplace-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false  # Vercel 배포 후 직접 입력
