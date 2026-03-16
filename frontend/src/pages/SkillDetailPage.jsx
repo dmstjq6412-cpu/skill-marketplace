@@ -56,19 +56,34 @@ export default function SkillDetailPage() {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-24">
             {/* Icon */}
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl
-                            flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl
+                            flex items-center justify-center mb-5 shadow-lg shadow-indigo-200">
+              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
 
-            <h1 className="text-xl font-bold text-gray-900">{skill.name}</h1>
-            <p className="text-gray-500 text-sm mt-1">{skill.author}</p>
+            {/* Name */}
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight leading-tight">
+              {skill.name}
+            </h1>
 
+            {/* Author */}
+            <div className="flex items-center gap-1.5 mt-2">
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span className="text-sm font-medium text-gray-500">{skill.author}</span>
+            </div>
+
+            {/* Description */}
             {skill.description && (
-              <p className="text-gray-600 text-sm mt-3">{skill.description}</p>
+              <div className="mt-4 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl px-4 py-3">
+                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-1">Description</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{skill.description}</p>
+              </div>
             )}
 
             {/* Meta */}
