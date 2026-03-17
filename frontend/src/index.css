@@ -2,6 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-stone-50 dark:bg-[#09090f] text-slate-900 dark:text-slate-100 font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-slate-600;
+  }
+}
+
+@layer utilities {
+  .card-glow {
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  }
+  .dark .card-glow:hover {
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.35), 0 8px 32px rgba(139, 92, 246, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .glass {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .hero-gradient {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139, 92, 246, 0.1), transparent),
+      radial-gradient(ellipse 40% 30% at 80% 30%, rgba(99, 102, 241, 0.07), transparent);
+  }
+  .dark .hero-gradient {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139, 92, 246, 0.18), transparent),
+      radial-gradient(ellipse 40% 30% at 80% 30%, rgba(99, 102, 241, 0.12), transparent);
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease-out both;
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+/* Markdown prose dark mode */
+.dark .prose {
+  --tw-prose-body: theme('colors.slate.300');
+  --tw-prose-headings: theme('colors.slate.100');
+  --tw-prose-lead: theme('colors.slate.400');
+  --tw-prose-links: theme('colors.violet.400');
+  --tw-prose-bold: theme('colors.slate.200');
+  --tw-prose-counters: theme('colors.slate.400');
+  --tw-prose-bullets: theme('colors.slate.500');
+  --tw-prose-hr: theme('colors.slate.700');
+  --tw-prose-quotes: theme('colors.slate.200');
+  --tw-prose-quote-borders: theme('colors.violet.700');
+  --tw-prose-captions: theme('colors.slate.400');
+  --tw-prose-code: theme('colors.violet.300');
+  --tw-prose-pre-code: theme('colors.slate.200');
+  --tw-prose-pre-bg: #13141e;
+  --tw-prose-th-borders: theme('colors.slate.700');
+  --tw-prose-td-borders: theme('colors.slate.800');
 }
