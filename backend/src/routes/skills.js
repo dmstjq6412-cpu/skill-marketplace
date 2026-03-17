@@ -55,6 +55,34 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/skills/by-name/:name
+router.get('/by-name/:name', async (req, res) => {
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, version, author, description, readme, file_type, downloads, created_at, updated_at
+       FROM skills WHERE name = $1 ORDER BY created_at DESC`,
+      [req.params.name]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Skill not found' });
+
+    // 가장 최신 버전 반환
+    rows.sort((a, b) => compareVersions(b.version, a.version));
+    const skill = rows[0];
+
+    const { rows: versions } = await pool.query(
+      `SELECT id, version, created_at, downloads FROM skills WHERE name = $1 ORDER BY created_at DESC`,
+      [skill.name]
+    );
+    versions.sort((a, b) => compareVersions(b.version, a.version));
+
+    res.json({ ...skill, versions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // GET /api/skills/:id
 router.get('/:id', async (req, res) => {
   const pool = getPool();
