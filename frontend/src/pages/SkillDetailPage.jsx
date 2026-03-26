@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { fetchSkill, getDownloadUrl, deleteSkill } from '../api/client';
+import { fetchSkill, getDownloadUrl, deleteSkill, fetchSkillFile } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
 
 function formatDate(dateStr) {
@@ -33,6 +33,27 @@ export default function SkillDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [openRefFiles, setOpenRefFiles] = useState({});
+  const [refFileContents, setRefFileContents] = useState({});
+  const [loadingRefFiles, setLoadingRefFiles] = useState({});
+
+  async function toggleRefFile(fileId) {
+    if (openRefFiles[fileId]) {
+      setOpenRefFiles(prev => ({ ...prev, [fileId]: false }));
+      return;
+    }
+    setOpenRefFiles(prev => ({ ...prev, [fileId]: true }));
+    if (refFileContents[fileId] !== undefined) return;
+    setLoadingRefFiles(prev => ({ ...prev, [fileId]: true }));
+    try {
+      const data = await fetchSkillFile(id, fileId);
+      setRefFileContents(prev => ({ ...prev, [fileId]: data.content }));
+    } catch {
+      setRefFileContents(prev => ({ ...prev, [fileId]: '_파일을 불러오지 못했습니다._' }));
+    } finally {
+      setLoadingRefFiles(prev => ({ ...prev, [fileId]: false }));
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true);
@@ -249,6 +270,54 @@ export default function SkillDetailPage() {
             </h2>
             <MarkdownViewer content={skill.readme} />
           </div>
+
+          {/* Reference Files */}
+          {skill.ref_files && skill.ref_files.length > 0 && (
+            <div className="bg-white dark:bg-[#111218] rounded-2xl border border-slate-200/80 dark:border-slate-800/80 p-6 shadow-sm dark:shadow-none">
+              <h2 className="font-display text-base font-semibold text-slate-800 dark:text-slate-200 mb-5 flex items-center gap-2.5 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <svg className="w-4 h-4 text-slate-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                </svg>
+                Reference Files
+                <span className="ml-auto text-xs font-mono text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                  {skill.ref_files.length}
+                </span>
+              </h2>
+              <div className="space-y-2">
+                {skill.ref_files.map(file => (
+                  <div key={file.id} className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => toggleRefFile(file.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                    >
+                      <svg className="w-4 h-4 text-violet-400 dark:text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                      </svg>
+                      <span className="font-mono text-sm text-slate-700 dark:text-slate-300 flex-1 truncate">{file.file_path}</span>
+                      <svg
+                        className={`w-4 h-4 text-slate-400 dark:text-slate-600 shrink-0 transition-transform duration-150 ${openRefFiles[file.id] ? 'rotate-180' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {openRefFiles[file.id] && (
+                      <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-4 bg-slate-50/50 dark:bg-slate-900/30">
+                        {loadingRefFiles[file.id] ? (
+                          <div className="flex items-center gap-2 py-4 justify-center">
+                            <div className="w-4 h-4 rounded-full border border-violet-400/30 border-t-violet-400 animate-spin" />
+                            <span className="text-xs text-slate-400">Loading…</span>
+                          </div>
+                        ) : (
+                          <MarkdownViewer content={refFileContents[file.id] ?? ''} />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Version History */}
           {skill.versions && skill.versions.length > 1 && (
