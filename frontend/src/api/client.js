@@ -19,3 +19,6 @@ export const deleteSkill = (id) =>
   api.delete(`/skills/${id}`).then(r => r.data);
 
 export const getDownloadUrl = (id) => `${BASE}/skills/${id}/download`;
+
+export const fetchSkillFile = (skillId, fileId) =>
+  api.get(`/skills/${skillId}/files/${fileId}`).then(r => r.data);
