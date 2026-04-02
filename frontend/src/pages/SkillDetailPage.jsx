@@ -10,7 +10,7 @@ function formatDate(dateStr) {
 }
 
 const ICON_GRADIENTS = [
-  'from-violet-500 to-indigo-600',
+  'from-primary-500 to-primary-700',
   'from-fuchsia-500 to-violet-600',
   'from-blue-500 to-cyan-600',
   'from-emerald-500 to-teal-600',
@@ -78,7 +78,7 @@ export default function SkillDetailPage() {
     return (
       <div className="flex items-center justify-center py-40">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-2 border-violet-600/30 dark:border-violet-400/20 border-t-violet-600 dark:border-t-violet-400 animate-spin" />
+          <div className="w-10 h-10 rounded-full border-2 border-primary-600/30 dark:border-primary-400/20 border-t-primary-600 dark:border-t-primary-400 animate-spin" />
           <span className="text-sm text-slate-400 dark:text-slate-600 font-mono">Loading skill…</span>
         </div>
       </div>

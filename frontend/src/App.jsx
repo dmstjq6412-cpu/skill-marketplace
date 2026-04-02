@@ -48,7 +48,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-5 py-3.5 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-violet-500/30 group-hover:shadow-violet-500/50 transition-shadow duration-200">
+            <div className="w-9 h-9 bg-gradient-to-br from-primary-600 to-primary-800 rounded-xl flex items-center justify-center shadow-md shadow-primary-600/30 group-hover:shadow-primary-600/50 transition-shadow duration-200">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
@@ -56,7 +56,7 @@ export default function App() {
             <div className="flex flex-col leading-none">
               <span className="font-display font-bold text-[15px] text-slate-900 dark:text-white tracking-tight">
                 Skill
-                <span className="text-violet-600 dark:text-violet-400"> Marketplace</span>
+                <span className="text-primary-600 dark:text-primary-400"> Marketplace</span>
               </span>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono tracking-wider">Claude Code Skills</span>
             </div>
@@ -68,7 +68,7 @@ export default function App() {
               to="/"
               className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-150 ${
                 !isUpload
-                  ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10'
+                  ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-600/10'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
@@ -78,8 +78,8 @@ export default function App() {
               to="/upload"
               className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-150 ${
                 isUpload
-                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-500/30'
-                  : 'bg-violet-600 text-white hover:bg-violet-700 shadow-sm shadow-violet-500/25 hover:shadow-violet-500/40'
+                  ? 'bg-primary-600 text-white shadow-sm shadow-primary-600/30'
+                  : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm shadow-primary-600/25 hover:shadow-primary-600/40'
               }`}
             >
               Upload Skill
