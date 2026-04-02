@@ -14,18 +14,7 @@ export default {
           light: '#ffffff',
           dark: '#111218',
         },
-        primary: {
-          50:  '#fff0f4',
-          100: '#ffd6e0',
-          200: '#ffadc0',
-          300: '#ff7a99',
-          400: '#f54070',
-          500: '#c8003f',
-          600: '#A50034',
-          700: '#7d0027',
-          800: '#55001b',
-          900: '#2e000e',
-        },
+
       },
       animation: {
         'spin-slow': 'spin 3s linear infinite',
