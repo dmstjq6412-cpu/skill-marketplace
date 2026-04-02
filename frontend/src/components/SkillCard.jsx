@@ -50,7 +50,12 @@ export default function SkillCard({ id, name, version, author, description, down
       </div>
 
       {/* Description */}
-      <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed min-h-[2.5rem]">{description || ''}</p>
+      <p className="text-sm line-clamp-2 leading-relaxed min-h-[2.5rem]">
+        {description
+          ? <span className="text-slate-500 dark:text-slate-400">{description}</span>
+          : <span className="text-slate-300 dark:text-slate-600 italic">No description provided.</span>
+        }
+      </p>
 
       {/* Meta */}
       <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-600 mt-auto pt-1 border-t border-slate-100 dark:border-slate-800/60">
