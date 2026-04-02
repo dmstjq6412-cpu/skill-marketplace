@@ -9,9 +9,9 @@ export default function MarkdownViewer({ content }) {
   return (
     <div className="prose prose-slate dark:prose-invert prose-sm sm:prose-base max-w-none
                     prose-headings:font-display prose-headings:tracking-tight
-                    prose-a:text-violet-600 dark:prose-a:text-violet-400 prose-a:no-underline hover:prose-a:underline
-                    prose-code:font-mono prose-code:text-violet-700 dark:prose-code:text-violet-300
-                    prose-code:bg-violet-50 dark:prose-code:bg-violet-500/10
+                    prose-a:text-primary-600 dark:prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline
+                    prose-code:font-mono prose-code:text-primary-700 dark:prose-code:text-primary-300
+                    prose-code:bg-primary-50 dark:prose-code:bg-primary-600/10
                     prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[0.85em]
                     prose-pre:bg-[#13141e] dark:prose-pre:bg-[#0e0f16] prose-pre:border prose-pre:border-slate-200 dark:prose-pre:border-slate-800
                     prose-pre:rounded-xl prose-pre:shadow-sm">
