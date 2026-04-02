@@ -9,7 +9,7 @@ function formatDate(dateStr) {
 }
 
 const ICON_GRADIENTS = [
-  'from-violet-500 to-indigo-600',
+  'from-primary-500 to-primary-700',
   'from-fuchsia-500 to-violet-600',
   'from-blue-500 to-cyan-600',
   'from-emerald-500 to-teal-600',
@@ -30,12 +30,12 @@ export default function SkillCard({ id, name, version, author, description, down
   return (
     <div
       onClick={() => navigate(`/skills/${id}`)}
-      className="card-glow group bg-white dark:bg-[#111218] rounded-2xl border border-slate-200/80 dark:border-slate-800/80 p-5 cursor-pointer flex flex-col gap-3 hover:border-violet-300 dark:hover:border-violet-800/60 hover:shadow-lg dark:hover:shadow-none transition-all duration-200 animate-fade-in-up"
+      className="card-glow group bg-white dark:bg-[#111218] rounded-2xl border border-slate-200/80 dark:border-slate-800/80 p-5 cursor-pointer flex flex-col gap-3 hover:border-primary-300 dark:hover:border-primary-800/60 hover:shadow-lg dark:hover:shadow-none transition-all duration-200 animate-fade-in-up"
     >
       {/* Icon + Name row */}
       <div className="flex items-start gap-3">
         <div className={`w-11 h-11 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center flex-shrink-0 shadow-md`}
-             style={{ boxShadow: `0 4px 12px rgba(139,92,246,0.25)` }}>
+             style={{ boxShadow: `0 4px 12px rgba(165,0,52,0.25)` }}>
           <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
@@ -44,7 +44,7 @@ export default function SkillCard({ id, name, version, author, description, down
           <h3 className="font-display font-semibold text-slate-900 dark:text-slate-100 truncate text-[15px] tracking-tight">{name}</h3>
           <p className="text-xs text-slate-500 dark:text-slate-500 truncate mt-0.5">{author}</p>
         </div>
-        <span className="text-[11px] font-mono font-medium bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 px-2 py-0.5 rounded-full flex-shrink-0 border border-violet-200/60 dark:border-violet-500/20">
+        <span className="text-[11px] font-mono font-medium bg-primary-50 dark:bg-primary-600/10 text-primary-700 dark:text-primary-400 px-2 py-0.5 rounded-full flex-shrink-0 border border-primary-200/60 dark:border-primary-600/20">
           v{version}
         </span>
       </div>
@@ -70,7 +70,7 @@ export default function SkillCard({ id, name, version, author, description, down
         href={getDownloadUrl(id)}
         download={`${name}.md`}
         onClick={e => e.stopPropagation()}
-        className="mt-0.5 w-full text-center bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium py-2 rounded-xl transition-colors duration-150 shadow-sm shadow-violet-500/20 group-hover:shadow-violet-500/30"
+        className="mt-0.5 w-full text-center bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 rounded-xl transition-colors duration-150 shadow-sm shadow-primary-600/20 group-hover:shadow-primary-600/30"
       >
         Download
       </a>

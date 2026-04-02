@@ -13,7 +13,72 @@
       "Bash(PYTHONUTF8=1 \"/c/Users/임은섭/AppData/Local/Programs/Python/Python312/python.exe\" \"/c/Users/임은섭/.claude/skills/terminal-cat/scripts/draw_cat.py\" --mode sleeping --name \"슬픈냥이\")",
       "Bash(PYTHONUTF8=1 \"/c/Users/임은섭/AppData/Local/Programs/Python/Python312/python.exe\" \"/c/Users/임은섭/.claude/skills/terminal-cat/scripts/draw_cat.py\" --mode dozing --name \"졸린냥이\" --loops 3)",
       "Bash(PYTHONUTF8=1 \"/c/Users/임은섭/AppData/Local/Programs/Python/Python312/python.exe\" \"/c/Users/임은섭/.claude/skills/terminal-cat/scripts/draw_cat.py\" --mode dozing --name \"졸린냥이\" --loops 2)",
-      "Bash(PYTHONUTF8=1 \"/c/Users/임은섭/AppData/Local/Programs/Python/Python312/python.exe\" \"/c/Users/임은섭/.claude/skills/terminal-cat/scripts/draw_cat.py\" --mode happy --name \"기쁜냥이\")"
+      "Bash(PYTHONUTF8=1 \"/c/Users/임은섭/AppData/Local/Programs/Python/Python312/python.exe\" \"/c/Users/임은섭/.claude/skills/terminal-cat/scripts/draw_cat.py\" --mode happy --name \"기쁜냥이\")",
+      "Bash(python:*)",
+      "Bash(PYTHONUTF8=1 python \"C:/Users/임은섭/.claude/skills/terminal-cat/scripts/draw_cat.py\" --mode happy --name \"테스트냥\" 2>&1)",
+      "Bash(where python:*)",
+      "Bash(py:*)",
+      "Read(//c/Users/임은섭/AppData/Local/Programs/Python//**)",
+      "Bash(PYTHONUTF8=1 \"/c/Users/임은섭/AppData/Local/Programs/Python/Python312/python.exe\" \"C:/Users/임은섭/.claude/skills/terminal-cat/scripts/draw_cat.py\" --mode happy --name \"테스트냥\" 2>&1)",
+      "Bash(npm run:*)",
+      "Bash(npx skills:*)",
+      "Bash(gws gmail:*)",
+      "Bash(gws auth:*)",
+      "Bash(SKILL_DIR=\"$HOME/.claude/skills/terminal-cat/scripts\")",
+      "Bash(WINDOW_SCRIPT=\"$SKILL_DIR/open_window.py\")",
+      "Bash(PYTHON=\"$HOME/AppData/Local/Programs/Python/Python312/python.exe\")",
+      "Bash(__NEW_LINE_ce307d2def2e6574__ PYTHONUTF8=1 \"$PYTHON\" \"$WINDOW_SCRIPT\" --mode dozing --name \"귀염냥\")",
+      "Skill(diff-mailer)",
+      "Bash(start chrome:*)",
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(start:*)",
+      "Bash(bash .claude/hooks/check-branch.sh)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/git-convention/hooks\")",
+      "Bash(__NEW_LINE_ad098c1a8be25a64__ cat:*)",
+      "Bash(\"/c/Users/임은섭/.claude/skills/git-convention/hooks/check-branch.sh\":*)",
+      "Bash(\"/c/Users/임은섭/.claude/skills/git-convention/hooks/hooks.json\":*)",
+      "Bash(__NEW_LINE_ad098c1a8be25a64__ echo:*)",
+      "Bash(command -v skill-marketplace)",
+      "Bash(bash \"$HOME/.claude/skills/skill-marketplace-cli/scripts/setup.sh\")",
+      "Bash(skill-marketplace list:*)",
+      "Bash(skill-marketplace upload:*)",
+      "Bash(find C:Users임은섭SKILL_MARKETPLACEfrontend -type f \\\\\\(-name *.json -o -name tailwind* -o -name *theme* -o -name *config* \\\\\\))",
+      "Bash(\"/c/Users/임은섭/AppData/Local/Programs/Python/Python312/python.exe\" --version)",
+      "Bash(echo \"exit code: $?\")",
+      "Bash(bash \"/c/Users/임은섭/.claude/skills/git-convention/hooks/check-branch.sh\")",
+      "Bash(HOOK=\"/c/Users/임은섭/.claude/skills/git-convention/hooks/check-branch.sh\" __NEW_LINE_08e0b4c5dbc3cf84__ echo \"=== [1] repo 내부 파일 \\(develop\\) → 차단 기대 ===\" echo '{\"\"\"\"tool_name\"\"\"\":\"\"\"\"Edit\"\"\"\",\"\"\"\"tool_input\"\"\"\":{\"\"\"\"file_path\"\"\"\":\"\"\"\"C:/Users/임은섭/SKILL_MARKETPLACE/frontend/src/App.jsx\"\"\"\"}}')",
+      "Bash(bash \"$HOOK\")",
+      "Bash(echo \"exit: $?\" __NEW_LINE_08e0b4c5dbc3cf84__ echo \"\" echo \"=== [2] repo 외부 파일 → 통과 기대 ===\" echo '{\"\"\"\"tool_name\"\"\"\":\"\"\"\"Edit\"\"\"\",\"\"\"\"tool_input\"\"\"\":{\"\"\"\"file_path\"\"\"\":\"\"\"\"C:/Users/임은섭/.claude/skills/some-skill/skill.md\"\"\"\"}}')",
+      "Bash(echo \"exit: $?\" __NEW_LINE_08e0b4c5dbc3cf84__ echo \"\" echo \"=== [3] file_path 없음 → 통과 기대 ===\" echo '{\"\"\"\"tool_name\"\"\"\":\"\"\"\"Edit\"\"\"\",\"\"\"\"tool_input\"\"\"\":{}}')",
+      "Bash(HOOK=\"/c/Users/임은섭/.claude/skills/git-convention/hooks/check-branch.sh\" __NEW_LINE_ca51570fc4b103b4__ echo \"=== [1] repo 내부 파일 \\(develop\\) → 차단 기대 ===\" echo '{\"\"\"\"tool_name\"\"\"\":\"\"\"\"Edit\"\"\"\",\"\"\"\"tool_input\"\"\"\":{\"\"\"\"file_path\"\"\"\":\"\"\"\"C:/Users/임은섭/SKILL_MARKETPLACE/frontend/src/App.jsx\"\"\"\"}}')",
+      "Bash(echo \"exit: $?\" __NEW_LINE_ca51570fc4b103b4__ echo \"\" echo \"=== [2] repo 외부 파일 → 통과 기대 ===\" echo '{\"\"\"\"tool_name\"\"\"\":\"\"\"\"Edit\"\"\"\",\"\"\"\"tool_input\"\"\"\":{\"\"\"\"file_path\"\"\"\":\"\"\"\"C:/Users/임은섭/.claude/skills/some-skill/skill.md\"\"\"\"}}')",
+      "Bash(echo \"exit: $?\" __NEW_LINE_ca51570fc4b103b4__ echo \"\" echo \"=== [3] file_path 없음 → 통과 기대 ===\" echo '{\"\"\"\"tool_name\"\"\"\":\"\"\"\"Edit\"\"\"\",\"\"\"\"tool_input\"\"\"\":{}}')",
+      "Bash(echo \"exit: $?\" __NEW_LINE_ca51570fc4b103b4__ echo \"\" echo \"=== [4] 백슬래시 경로 → 차단 기대 ===\" echo '{\"\"\"\"tool_name\"\"\"\":\"\"\"\"Edit\"\"\"\",\"\"\"\"tool_input\"\"\"\":{\"\"\"\"file_path\"\"\"\":\"\"\"\"C:\\\\\\\\Users\\\\\\\\임은섭\\\\\\\\SKILL_MARKETPLACE\\\\\\\\frontend\\\\\\\\src\\\\\\\\App.jsx\"\"\"\"}}')",
+      "Bash(echo '{\"\"\"\"tool_input\"\"\"\":{\"\"\"\"file_path\"\"\"\":\"\"\"\"C:\\\\\\\\Users\\\\\\\\임은섭\\\\\\\\SKILL_MARKETPLACE\\\\\\\\test.js\"\"\"\"}}')",
+      "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-1-mariadb-member/with_skill/outputs\")",
+      "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-1-mariadb-member/without_skill/outputs\")",
+      "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-2-postgresql-order/with_skill/outputs\")",
+      "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-2-postgresql-order/without_skill/outputs\")",
+      "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-3-no-db-product/with_skill/outputs\")"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/check-branch.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }
