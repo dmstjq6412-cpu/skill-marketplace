@@ -6,6 +6,12 @@ import react from 'eslint-plugin-react'
 
 export default [
   { ignores: ['dist', 'node_modules'] },
+  {
+    files: ['tailwind.config.js', 'vite.config.*', 'postcss.config.*'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
   js.configs.recommended,
   {
     files: ['**/*.{js,jsx}'],
