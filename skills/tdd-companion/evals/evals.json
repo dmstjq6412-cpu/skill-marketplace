@@ -1,0 +1,26 @@
+{
+  "skill_name": "tdd-companion",
+  "evals": [
+    {
+      "id": 0,
+      "name": "eval-backend-api",
+      "prompt": "backend에 스킬 다운로드 수를 증가시키는 엔드포인트를 추가해줘. POST /api/skills/:id/download 를 skills 라우터에 추가하면 되고, skills 테이블의 downloads 컬럼을 +1 하면 돼. 스킬이 없으면 404를 반환해야 해.",
+      "expected_output": "backend/src/routes/skills.js에 엔드포인트 추가 + backend/tests/routes/skills.test.js에 유닛테스트(정상/404/DB오류) 및 회귀테스트 작성",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "eval-frontend-component",
+      "prompt": "frontend에 SkillCard 컴포넌트를 새로 만들어줘. 스킬 이름, 작성자, 다운로드 수를 props로 받아서 카드 형태로 보여주면 되고, 카드 클릭 시 onSelect 콜백을 호출해야 해.",
+      "expected_output": "frontend/src/components/SkillCard.jsx 생성 + frontend/src/__tests__/SkillCard.test.jsx에 컴포넌트 테스트(렌더링/클릭/props) 및 회귀테스트 작성",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "eval-bugfix-regression",
+      "prompt": "backend skills 라우터에서 스킬 업로드 시 author 필드가 없어도 업로드가 되는 버그가 있어. author가 없으면 400을 반환하도록 수정해줘.",
+      "expected_output": "backend/src/routes/skills.js 수정 + 버그 재현 회귀테스트(author 누락 시 400) + 기존 정상 동작 회귀테스트 포함",
+      "files": []
+    }
+  ]
+}

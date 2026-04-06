@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git Convention - 전체 동작 흐름</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+  .page { width: 1100px; margin: 0 auto; padding: 40px 20px; }
+
+  h1 { text-align: center; font-size: 26px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #666; font-size: 13px; margin-bottom: 36px; }
+
+  /* 섹션 */
+  .section { background: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 24px;
+             box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 22px; padding-bottom: 10px;
+                   border-bottom: 2px solid; display: flex; align-items: center; gap: 8px; }
+  .section-title .num { width: 26px; height: 26px; border-radius: 50%; display: flex;
+                        align-items: center; justify-content: center; font-size: 12px;
+                        font-weight: 800; color: #fff; flex-shrink: 0; }
+
+  /* 흐름 컨테이너 */
+  .flow { display: flex; align-items: flex-start; gap: 0; flex-wrap: nowrap; overflow-x: auto; }
+  .flow-col { display: flex; flex-direction: column; align-items: center; }
+
+  /* 노드 */
+  .node { border-radius: 10px; padding: 10px 16px; font-size: 12px; font-weight: 600;
+          text-align: center; min-width: 120px; max-width: 150px; line-height: 1.4;
+          position: relative; }
+  .node.start  { background: #1a1a2e; color: #fff; border-radius: 24px; }
+  .node.end    { background: #1a1a2e; color: #fff; border-radius: 24px; }
+  .node.step   { background: #e8f0fe; color: #1a56db; border: 2px solid #93c5fd; }
+  .node.check  { background: #fef9c3; color: #854d0e; border: 2px solid #fde047; }
+  .node.ok     { background: #dcfce7; color: #166534; border: 2px solid #86efac; }
+  .node.fail   { background: #fee2e2; color: #991b1b; border: 2px solid #fca5a5; }
+  .node.action { background: #ede9fe; color: #5b21b6; border: 2px solid #c4b5fd; }
+  .node.mail   { background: #fdf4ff; color: #7e22ce; border: 2px solid #e9d5ff; }
+  .node.sync   { background: #ecfdf5; color: #065f46; border: 2px solid #6ee7b7; }
+  .node.para   { background: #fff7ed; color: #c2410c; border: 2px solid #fdba74; }
+  .node.block  { background: #fee2e2; color: #991b1b; border: 2px solid #f87171;
+                 border-left: 4px solid #dc2626; }
+  .node.forbidden { background: #fef2f2; color: #7f1d1d; border: 2px dashed #fca5a5; font-size: 11px; }
+
+  /* 화살표 */
+  .arrow { display: flex; align-items: center; justify-content: center;
+           color: #94a3b8; font-size: 18px; padding: 2px 4px; flex-shrink: 0; }
+  .arrow.down { writing-mode: horizontal-tb; padding: 4px 0;
+                display: flex; flex-direction: column; align-items: center; }
+  .arrow-line { width: 2px; background: #cbd5e1; flex-grow: 1; min-height: 14px; }
+  .arrow-tip  { color: #94a3b8; font-size: 14px; line-height: 1; }
+  .arrow-label { font-size: 10px; color: #64748b; font-weight: 600; white-space: nowrap;
+                 background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;
+                 padding: 1px 5px; margin: 2px 0; }
+
+  .va { display: flex; flex-direction: column; align-items: center; }
+  .va .arrow-line { min-height: 12px; }
+
+  /* 병렬 블록 */
+  .parallel-box { border: 2px dashed #fdba74; border-radius: 12px; background: #fffbeb;
+                  padding: 14px; display: flex; gap: 12px; align-items: flex-start; }
+  .parallel-label { font-size: 10px; font-weight: 700; color: #c2410c; text-align: center;
+                    margin-bottom: 8px; letter-spacing: 0.5px; }
+
+  /* 분기 */
+  .branch-box { display: flex; gap: 16px; align-items: flex-start; }
+  .branch-col { display: flex; flex-direction: column; align-items: center; }
+  .branch-line { border-top: 2px solid #cbd5e1; width: 100%; margin: 0; }
+
+  /* 범례 */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #555; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+
+  /* 전체 흐름 오버뷰 */
+  .overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 8px; }
+  .overview-card { border-radius: 12px; padding: 16px; text-align: center; }
+  .overview-card .icon { font-size: 28px; margin-bottom: 8px; }
+  .overview-card .title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .overview-card .desc  { font-size: 11px; line-height: 1.5; color: #555; }
+
+  .oc1 { background: #e8f0fe; border: 2px solid #93c5fd; }
+  .oc2 { background: #ede9fe; border: 2px solid #c4b5fd; }
+  .oc3 { background: #fdf4ff; border: 2px solid #e9d5ff; }
+  .oc4 { background: #ecfdf5; border: 2px solid #6ee7b7; }
+
+  /* 금지 박스 */
+  .forbidden-box { background: #fef2f2; border: 2px dashed #fca5a5; border-radius: 10px;
+                   padding: 12px 16px; margin-top: 16px; }
+  .forbidden-box .fb-title { font-size: 12px; font-weight: 700; color: #dc2626; margin-bottom: 8px; }
+  .forbidden-box ul { list-style: none; }
+  .forbidden-box li { font-size: 11px; color: #7f1d1d; padding: 3px 0;
+                      display: flex; align-items: flex-start; gap: 6px; }
+  .forbidden-box li::before { content: "✗"; color: #dc2626; font-weight: 700; flex-shrink: 0; }
+
+  /* 수평 흐름 */
+  .hflow { display: flex; align-items: center; gap: 0; flex-wrap: nowrap; }
+  .harrow { color: #94a3b8; font-size: 16px; padding: 0 4px; flex-shrink: 0; }
+
+  /* 두 컬럼 레이아웃 */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  @media print {
+    body { background: white; }
+    .page { width: 100%; padding: 20px; }
+    .section { box-shadow: none; border: 1px solid #e5e7eb; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Git Convention — 전체 동작 흐름</h1>
+  <p class="subtitle">팀 온보딩용 · Claude 자동 적용 스킬 · git-convention v1.5</p>
+
+  <!-- 오버뷰 -->
+  <div class="section">
+    <div class="section-title" style="border-color:#93c5fd; color:#1a56db;">
+      <span class="num" style="background:#1a56db;">0</span> 전체 구조 한눈에 보기
+    </div>
+    <div class="overview">
+      <div class="overview-card oc1">
+        <div class="icon">🌿</div>
+        <div class="title">브랜치 생성</div>
+        <div class="desc">이슈번호 + 설명 필수<br>main에서 파생<br>feature/N-설명</div>
+      </div>
+      <div class="overview-card oc2">
+        <div class="icon">💾</div>
+        <div class="title">커밋</div>
+        <div class="desc">Summary 검증<br>정적분석 + LLM 리뷰 병렬<br>자동 메세지 생성</div>
+      </div>
+      <div class="overview-card oc3">
+        <div class="icon">📬</div>
+        <div class="title">PR 생성</div>
+        <div class="desc">리뷰어 필수<br>수신자 목록 기반 이메일<br>PR URL 포함</div>
+      </div>
+      <div class="overview-card oc4">
+        <div class="icon">🔄</div>
+        <div class="title">머지 & 동기화</div>
+        <div class="desc">feature → main 배포<br>main → develop 즉시 sync<br>브랜치 삭제</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. 브랜치 생성 -->
+  <div class="section">
+    <div class="section-title" style="border-color:#93c5fd; color:#1a56db;">
+      <span class="num" style="background:#1a56db;">1</span> 브랜치 생성 &amp; 코드 작업 보호
+    </div>
+
+    <!-- 코드 작업 전 브랜치 확인 -->
+    <div style="background:#fef2f2; border:2px solid #fca5a5; border-radius:10px; padding:16px 20px; margin-bottom:20px;">
+      <div style="font-size:12px; font-weight:700; color:#dc2626; margin-bottom:10px;">🛡️ 코드 작업 전 브랜치 확인 (모든 파일 수정 시 필수)</div>
+      <div class="hflow" style="gap:0; align-items:center;">
+        <div class="node start" style="min-width:110px;">코드 작업 요청</div>
+        <div class="harrow">→</div>
+        <div class="node step" style="font-size:11px;">git branch --show-current</div>
+        <div class="harrow">→</div>
+        <div class="node check" style="min-width:120px;">main 또는 develop?</div>
+        <div class="harrow">→</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div class="arrow-label">YES</div>
+            <div class="node block" style="min-width:160px; font-size:11px;">🚫 즉시 차단<br><span style="font-weight:400;">feature 브랜치 생성 유도</span></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div class="arrow-label">NO (feature/*)</div>
+            <div class="node ok" style="min-width:120px;">✅ 작업 진행</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hflow" style="flex-wrap:wrap; gap:0; align-items:flex-start;">
+
+      <div class="va">
+        <div class="node start">브랜치 생성 요청</div>
+        <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+        <div class="node check">이슈번호 있나요?</div>
+        <div style="display:flex; gap:24px; margin-top:0;">
+          <div class="va">
+            <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+            <div class="arrow-label">없음</div>
+            <div class="arrow-line" style="min-height:6px;"></div><div class="arrow-tip">▼</div>
+            <div class="node block" style="min-width:110px;">작업 중단<br><span style="font-size:10px;font-weight:400;">이슈번호 요청</span></div>
+          </div>
+          <div class="va">
+            <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+            <div class="arrow-label">있음</div>
+            <div class="arrow-line" style="min-height:6px;"></div><div class="arrow-tip">▼</div>
+            <div class="node check">설명 있나요?</div>
+            <div style="display:flex; gap:24px; margin-top:0;">
+              <div class="va">
+                <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+                <div class="arrow-label">없음</div>
+                <div class="arrow-line" style="min-height:6px;"></div><div class="arrow-tip">▼</div>
+                <div class="node block" style="min-width:110px;">작업 중단<br><span style="font-size:10px;font-weight:400;">설명 요청</span></div>
+              </div>
+              <div class="va">
+                <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+                <div class="arrow-label">있음</div>
+                <div class="arrow-line" style="min-height:6px;"></div><div class="arrow-tip">▼</div>
+                <div class="node step">git checkout main<br>git pull origin main</div>
+                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+                <div class="node ok">git checkout -b<br>feature/N-설명</div>
+                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+                <div class="node end">브랜치 생성 완료</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-left:auto; padding-left:20px;">
+        <div class="forbidden-box">
+          <div class="fb-title">🚫 절대 금지</div>
+          <ul>
+            <li>main/develop 직접 작업</li>
+            <li>develop에서 브랜치 파생</li>
+            <li>develop → feature merge</li>
+          </ul>
+        </div>
+        <div style="margin-top:12px; background:#e8f0fe; border-radius:10px; padding:12px; border:1px solid #93c5fd;">
+          <div style="font-size:11px; font-weight:700; color:#1a56db; margin-bottom:6px;">📌 네이밍 규칙</div>
+          <div style="font-size:12px; font-family:monospace; background:#fff; border-radius:6px; padding:6px 10px; color:#1a56db;">feature/<b>이슈번호</b>-<b>설명</b></div>
+          <div style="font-size:10px; color:#555; margin-top:6px;">예: feature/42-user-login<br>예: feature/101-payment-api</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 커밋 -->
+  <div class="section">
+    <div class="section-title" style="border-color:#c4b5fd; color:#5b21b6;">
+      <span class="num" style="background:#5b21b6;">2</span> 커밋 (서브에이전트 병렬 검증)
+    </div>
+
+    <div style="display:flex; gap:24px; align-items:flex-start;">
+      <!-- 메인 흐름 -->
+      <div class="va" style="min-width:160px;">
+        <div class="node start">커밋 요청</div>
+        <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+        <div class="node check">Summary 입력?</div>
+        <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+        <div class="node check">유효성 검증</div>
+        <div style="font-size:10px; color:#92400e; background:#fef3c7; border-radius:6px; padding:4px 8px; margin:4px 0; max-width:150px; text-align:center;">
+          공백·반복문자·난타<br>3글자 미만 → 차단
+        </div>
+        <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+        <div class="node step">git diff --staged<br>실행</div>
+        <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+        <div class="node para" style="text-align:center; font-size:11px; padding:8px;">⚡ 병렬 처리 시작</div>
+      </div>
+
+      <div class="arrow" style="align-self:center; margin-top:80px;">→</div>
+
+      <!-- 병렬 박스 -->
+      <div style="flex:1;">
+        <div class="parallel-box" style="flex-direction:column; gap:10px;">
+
+          <!-- A-1 정적 분석 서브에이전트 -->
+          <div style="width:100%;">
+            <div class="parallel-label">⚡ 병렬 A-1 — static-analyzer 서브에이전트</div>
+            <div class="node action" style="width:100%; max-width:none; font-size:11px;">
+              서브에이전트 spawn<br>
+              <span style="font-weight:400;">static-analysis.config.yml 읽기 → enabled 도구 병렬 실행 → 결과 취합</span>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <div style="flex:1; background:#fff; border-radius:8px; padding:8px; border:1px solid #fdba74; font-size:10px; text-align:center;">
+                <div style="font-weight:700; color:#c2410c;">ESLint · SonarQube</div>
+                <div style="color:#888; margin-top:2px;">+ config.yml에 추가만</div>
+              </div>
+              <div style="flex:1; background:#fff8f0; border-radius:8px; padding:8px; border:1px solid #fdba74; font-size:10px;">
+                <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">반환</div>
+                <div style="color:#555; line-height:1.5;">VERDICT: PASS/REJECT<br>ERRORS + 수정 제안<br>WARNINGS (참고용)</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="height:1px; background:#fed7aa; width:100%;"></div>
+
+          <!-- A-2 + B -->
+          <div style="display:flex; gap:10px; width:100%;">
+            <div style="flex:1;">
+              <div class="parallel-label">⚡ 병렬 A-2 — code-reviewer 서브에이전트</div>
+              <div class="va">
+                <div class="node action" style="width:100%; max-width:none;">서브에이전트 spawn<br><span style="font-size:10px; font-weight:400;">code_review_rules + coding_standards + team_rules + diff</span></div>
+                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+                <div class="node step" style="width:100%; max-width:none; font-size:11px;">보안 취약점 · 치명적 버그<br>팀 전용 규칙 검사</div>
+                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+                <div style="background:#fff8f0; border-radius:8px; padding:8px; border:1px solid #fdba74; font-size:10px; width:100%;">
+                  <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">반환</div>
+                  <div style="color:#555; line-height:1.5;">VERDICT: PASS/REJECT<br>CRITICAL + 수정 제안<br>WARNINGS (참고용)</div>
+                </div>
+              </div>
+            </div>
+            <div style="width:2px; background:#fed7aa; border-radius:2px; align-self:stretch;"></div>
+            <div style="flex:1;">
+              <div class="parallel-label">⚡ 병렬 B — 메세지 재료 수집</div>
+              <div class="va">
+                <div class="node step" style="width:100%; max-width:none; font-size:11px;">git branch --show-current<br>git config user.name<br>date +%Y-%m-%d %H:%M:%S</div>
+                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+                <div class="node step" style="width:100%; max-width:none; font-size:11px;">diff에서 추출<br>변경 파일명 + 줄번호</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 결과 분기 -->
+        <div style="margin-top:16px; display:flex; gap:16px;">
+          <div class="va" style="flex:1;">
+            <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+            <div class="node block" style="width:100%; max-width:none;">🚫 커밋 차단<br><span style="font-size:10px; font-weight:400;">정적분석 ERROR / LLM REJECT + 수정 제안 출력</span></div>
+            <div style="font-size:10px; color:#666; margin-top:6px; text-align:center;">수정 제안 확인 → 코드 수정 후 재시도</div>
+          </div>
+          <div class="va" style="flex:1;">
+            <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+            <div class="node ok" style="width:100%; max-width:none;">✅ 모두 PASS — 커밋 진행</div>
+            <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+            <div class="node action" style="width:100%; max-width:none; font-size:11px;">
+              커밋 메세지 구성<br>
+              <span style="font-family:monospace; font-size:10px; font-weight:400;">[브랜치] [username] [시각]<br>Summary: ...<br>Changes: ...</span>
+            </div>
+            <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+            <div class="node end">git commit 실행</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 & 4. PR 흐름 -->
+  <div class="section">
+    <div class="section-title" style="border-color:#e9d5ff; color:#7e22ce;">
+      <span class="num" style="background:#7e22ce;">3</span> PR 생성 &amp; 머지 흐름
+    </div>
+
+    <div class="two-col">
+
+      <!-- feature → develop -->
+      <div>
+        <div style="text-align:center; font-size:12px; font-weight:700; color:#1a56db; background:#e8f0fe; border-radius:8px; padding:8px; margin-bottom:14px;">
+          🧪 feature → develop  (개발환경 테스트)
+        </div>
+        <div class="va">
+          <div class="node start">PR 요청 (develop 대상)</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node check">리뷰어 지정됨?</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="arrow-label">없으면 요청 후 진행</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node step" style="font-size:11px;">📄 git-platform.config.yml 읽기<br><span style="font-weight:400;">platform: gitea | github | gitlab</span></div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <!-- 플랫폼 라우팅 -->
+          <div style="background:#fff7ed; border:2px dashed #fdba74; border-radius:10px; padding:10px; width:100%;">
+            <div style="font-size:10px; font-weight:700; color:#c2410c; margin-bottom:8px; text-align:center;">플랫폼 라우팅</div>
+            <div style="display:flex; gap:6px; justify-content:center;">
+              <div style="flex:1; background:#ecfdf5; border-radius:6px; padding:6px; border:1px solid #6ee7b7; font-size:10px; text-align:center;">
+                <div style="font-weight:700; color:#065f46;">Gitea</div>
+                <div style="color:#555; margin-top:2px;">REST API<br>git-platform.js</div>
+              </div>
+              <div style="flex:1; background:#e8f0fe; border-radius:6px; padding:6px; border:1px solid #93c5fd; font-size:10px; text-align:center;">
+                <div style="font-weight:700; color:#1a56db;">GitHub</div>
+                <div style="color:#555; margin-top:2px;">gh CLI<br>gh pr create</div>
+              </div>
+              <div style="flex:1; background:#fdf4ff; border-radius:6px; padding:6px; border:1px solid #e9d5ff; font-size:10px; text-align:center;">
+                <div style="font-weight:700; color:#7e22ce;">GitLab</div>
+                <div style="color:#555; margin-top:2px;">REST API<br>git-platform.js</div>
+              </div>
+            </div>
+          </div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node ok">PR URL 저장</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node step">git diff develop..HEAD</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node step" style="font-size:11px;">📋 email_recipients.md 읽기<br><span style="font-weight:400;">수신자 목록 + 조건 확인</span></div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node check">diff-mailer 설치?</div>
+          <div style="display:flex; gap:12px; margin-top:0;">
+            <div class="va">
+              <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+              <div class="arrow-label">설치됨</div>
+              <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+              <div class="node mail" style="font-size:11px;">📧 HTML diff 이메일<br>PR URL 포함</div>
+            </div>
+            <div class="va">
+              <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+              <div class="arrow-label">미설치</div>
+              <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+              <div class="node mail" style="font-size:11px;">📧 텍스트 요약 이메일<br>PR URL 포함</div>
+            </div>
+          </div>
+          <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+          <div style="font-size:11px; color:#666; text-align:center; background:#f8fafc; border-radius:8px; padding:8px; width:100%;">
+            수신자 목록 기반 개별 발송<br>
+            승인 1명 이상 → 머지 진행
+          </div>
+        </div>
+      </div>
+
+      <!-- feature → main + sync -->
+      <div>
+        <div style="text-align:center; font-size:12px; font-weight:700; color:#065f46; background:#ecfdf5; border-radius:8px; padding:8px; margin-bottom:14px;">
+          🚀 feature → main  (운영 반영 + develop 동기화)
+        </div>
+        <div class="va">
+          <div class="node start">develop 테스트 통과 확인</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node check">리뷰어 지정됨?</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="arrow-label">없으면 요청 후 진행</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node step" style="font-size:11px;">📄 git-platform.config.yml 읽기<br><span style="font-weight:400;">platform: gitea | github | gitlab</span></div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <!-- 플랫폼 라우팅 -->
+          <div style="background:#fff7ed; border:2px dashed #fdba74; border-radius:10px; padding:10px; width:100%;">
+            <div style="font-size:10px; font-weight:700; color:#c2410c; margin-bottom:8px; text-align:center;">플랫폼 라우팅</div>
+            <div style="display:flex; gap:6px; justify-content:center;">
+              <div style="flex:1; background:#ecfdf5; border-radius:6px; padding:6px; border:1px solid #6ee7b7; font-size:10px; text-align:center;">
+                <div style="font-weight:700; color:#065f46;">Gitea</div>
+                <div style="color:#555; margin-top:2px;">REST API<br>git-platform.js</div>
+              </div>
+              <div style="flex:1; background:#e8f0fe; border-radius:6px; padding:6px; border:1px solid #93c5fd; font-size:10px; text-align:center;">
+                <div style="font-weight:700; color:#1a56db;">GitHub</div>
+                <div style="color:#555; margin-top:2px;">gh CLI<br>gh pr create</div>
+              </div>
+              <div style="flex:1; background:#fdf4ff; border-radius:6px; padding:6px; border:1px solid #e9d5ff; font-size:10px; text-align:center;">
+                <div style="font-weight:700; color:#7e22ce;">GitLab</div>
+                <div style="color:#555; margin-top:2px;">REST API<br>git-platform.js</div>
+              </div>
+            </div>
+          </div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node ok">PR URL 저장</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node step">git diff main..HEAD</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node step" style="font-size:11px;">📋 email_recipients.md 읽기<br><span style="font-weight:400;">수신자 목록 + 조건 확인</span></div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node mail" style="font-size:11px;">📧 이메일 발송<br>(HTML or 텍스트 fallback)<br>수신자 목록 기반 개별 발송</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node step">승인 1명 이상 → 머지 (--no-ff)</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node action">feature 브랜치 삭제</div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node sync" style="border-width:2px; border-style:solid;">
+            🔄 main → develop 즉시 동기화<br>
+            <span style="font-size:10px; font-weight:400; font-family:monospace;">git checkout develop<br>git merge --no-ff main</span>
+          </div>
+          <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+          <div class="node end">완료 ✓</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 금지 규칙 -->
+    <div class="forbidden-box" style="margin-top:20px;">
+      <div class="fb-title">🚫 머지 절대 금지 규칙</div>
+      <ul style="display:flex; gap:24px; flex-wrap:wrap;">
+        <li>develop → main 직접 머지 (feature → main 만 허용)</li>
+        <li>develop → feature 역방향 머지</li>
+        <li>rebase 사용 (merge commit 방식만 허용)</li>
+        <li>리뷰어 없이 PR 생성</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 4. 스킬 구조 & 커스터마이징 -->
+  <div class="section">
+    <div class="section-title" style="border-color:#6ee7b7; color:#065f46;">
+      <span class="num" style="background:#065f46;">4</span> 스킬 구조 &amp; 커스터마이징
+    </div>
+    <div style="display:flex; gap:20px; align-items:flex-start;">
+
+      <!-- 파일 구조 -->
+      <div style="flex:1.4; background:#ecfdf5; border-radius:10px; padding:16px; border:1px solid #6ee7b7;">
+        <div style="font-size:13px; font-weight:700; color:#065f46; margin-bottom:10px;">📁 스킬 파일 구조</div>
+        <div style="font-family:monospace; font-size:11px; background:#fff; border-radius:8px; padding:12px; line-height:2;">
+          git-convention/<br>
+          ├── <b>SKILL.md</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#888; font-family:sans-serif; font-size:10px;">← 라우터 (작업 감지 → reference 지정)</span><br>
+          ├── <b style="color:#c2410c;">static-analysis.config.yml</b>&nbsp;&nbsp;<span style="color:#c2410c; font-family:sans-serif; font-size:10px;">← 정적 분석 도구 on/off</span><br>
+          ├── <b style="color:#065f46;">git-platform.config.yml</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#065f46; font-family:sans-serif; font-size:10px;">← 플랫폼 설정 (gitea|github|gitlab)</span><br>
+          ├── git-convention-flow.html&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#888; font-family:sans-serif; font-size:10px;">← 이 문서</span><br>
+          ├── scripts/<br>
+          │&nbsp;&nbsp;&nbsp;├── git-platform.js&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#065f46; font-family:sans-serif; font-size:10px;">Node.js CLI (Gitea/GitLab REST, GitHub gh)</span><br>
+          │&nbsp;&nbsp;&nbsp;└── git-platform-go/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#888; font-family:sans-serif; font-size:10px;">Go 소스 참조 (빌드 시 exe 전환 가능)</span><br>
+          └── references/<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── branch.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#1a56db; font-family:sans-serif; font-size:10px;">브랜치 생성 + 코드 작업 보호</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── commit.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#5b21b6; font-family:sans-serif; font-size:10px;">커밋 3단계 + 병렬 처리</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── pr.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7e22ce; font-family:sans-serif; font-size:10px;">PR 라우터 (플랫폼별 위임)</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── pr-gitea.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#065f46; font-family:sans-serif; font-size:10px;">Gitea REST API 절차</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── pr-github.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#1a56db; font-family:sans-serif; font-size:10px;">GitHub gh CLI 절차</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── pr-gitlab.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7e22ce; font-family:sans-serif; font-size:10px;">GitLab REST API 절차</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── merge.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#065f46; font-family:sans-serif; font-size:10px;">머지 전략 + 동기화</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── eslint.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#c2410c; font-family:sans-serif; font-size:10px;">ESLint 실행 절차</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── sonarqube.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#c2410c; font-family:sans-serif; font-size:10px;">SonarQube 실행 절차</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── code_review_rules.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#888; font-family:sans-serif; font-size:10px;">공통 보안/품질 기준 (LLM)</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── coding_standards.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#888; font-family:sans-serif; font-size:10px;">언어별 안전/위험 패턴 (LLM)</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── <b style="color:#16a34a;">team_rules.md</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#16a34a; font-family:sans-serif; font-size:10px;">← 팀 코딩 규칙 추가</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;└── <b style="color:#7e22ce;">email_recipients.md</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7e22ce; font-family:sans-serif; font-size:10px;">← PR 이메일 수신자 추가</span>
+        </div>
+      </div>
+
+      <!-- 커스터마이징 -->
+      <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="background:#fef9c3; border-radius:10px; padding:14px; border:1px solid #fde047;">
+          <div style="font-size:12px; font-weight:700; color:#854d0e; margin-bottom:6px;">🔴 team_rules.md — CRITICAL (커밋 차단)</div>
+          <div style="font-size:11px; color:#555; line-height:1.7;">예: deprecated API 사용 금지<br>예: DB 직접 접근 금지 (Repository 강제)</div>
+        </div>
+        <div style="background:#e8f0fe; border-radius:10px; padding:14px; border:1px solid #93c5fd;">
+          <div style="font-size:12px; font-weight:700; color:#1a56db; margin-bottom:6px;">🟡 team_rules.md — WARNING (경고, 커밋 허용)</div>
+          <div style="font-size:11px; color:#555; line-height:1.7;">예: 한국어 주석 권장<br>예: 특정 네이밍 컨벤션 권고</div>
+        </div>
+        <div style="background:#fdf4ff; border-radius:10px; padding:14px; border:1px solid #e9d5ff;">
+          <div style="font-size:12px; font-weight:700; color:#7e22ce; margin-bottom:6px;">📧 email_recipients.md — 수신자 추가</div>
+          <div style="font-size:11px; color:#555; line-height:1.7;">
+            테이블에 행 추가 후 비고란으로 발송 조건 설정<br>
+            <span style="font-family:monospace; background:#f3e8ff; border-radius:4px; padding:2px 4px; font-size:10px;">feature→main PR만 수신</span>
+            <span style="font-family:monospace; background:#f3e8ff; border-radius:4px; padding:2px 4px; font-size:10px; margin-left:4px;">모든 PR 수신</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 연동 -->
+      <div style="flex:0.7; background:#f8fafc; border-radius:10px; padding:16px; border:1px solid #e2e8f0;">
+        <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:10px;">🔗 연동 스킬</div>
+        <div style="font-size:11px; line-height:2.2;">
+          <div style="display:flex; align-items:center; gap:8px;"><span style="background:#ede9fe; color:#5b21b6; border-radius:4px; padding:2px 6px; font-weight:600; font-size:10px;">번들</span> branch.md</div>
+          <div style="display:flex; align-items:center; gap:8px;"><span style="background:#ede9fe; color:#5b21b6; border-radius:4px; padding:2px 6px; font-weight:600; font-size:10px;">번들</span> commit.md</div>
+          <div style="display:flex; align-items:center; gap:8px;"><span style="background:#ede9fe; color:#5b21b6; border-radius:4px; padding:2px 6px; font-weight:600; font-size:10px;">번들</span> pr.md</div>
+          <div style="display:flex; align-items:center; gap:8px;"><span style="background:#ede9fe; color:#5b21b6; border-radius:4px; padding:2px 6px; font-weight:600; font-size:10px;">번들</span> merge.md</div>
+          <div style="display:flex; align-items:center; gap:8px;"><span style="background:#ede9fe; color:#5b21b6; border-radius:4px; padding:2px 6px; font-weight:600; font-size:10px;">번들</span> team_rules.md</div>
+          <div style="display:flex; align-items:center; gap:8px;"><span style="background:#ede9fe; color:#5b21b6; border-radius:4px; padding:2px 6px; font-weight:600; font-size:10px;">번들</span> email_recipients.md</div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;"><span style="background:#fdf4ff; color:#7e22ce; border-radius:4px; padding:2px 6px; font-weight:600; font-size:10px;">별도 설치</span> diff-mailer</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 범례 -->
+  <div class="section" style="padding:16px 32px;">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1a1a2e;"></div> 시작/종료</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e8f0fe; border:1px solid #93c5fd;"></div> 일반 단계</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fef9c3; border:1px solid #fde047;"></div> 판단/검증</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dcfce7; border:1px solid #86efac;"></div> 성공 / PASS</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fee2e2; border:1px solid #fca5a5;"></div> 실패 / REJECT / 차단</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ede9fe; border:1px solid #c4b5fd;"></div> 자동 처리</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fff7ed; border:1px solid #fdba74;"></div> 병렬 처리</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fdf4ff; border:1px solid #e9d5ff;"></div> 이메일 발송</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ecfdf5; border:1px solid #6ee7b7;"></div> 동기화</div>
+    </div>
+  </div>
+
+  <p style="text-align:center; font-size:11px; color:#999; margin-top:12px; padding-bottom:20px;">
+    git-convention skill · PDF로 저장하려면 브라우저에서 Ctrl+P → PDF로 저장
+  </p>
+
+</div>
+</body>
+</html>

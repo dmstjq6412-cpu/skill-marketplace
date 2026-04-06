@@ -1,0 +1,17 @@
+{
+  "description": "main/develop 브랜치에서 직접 파일 수정을 차단하는 훅",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-branch.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

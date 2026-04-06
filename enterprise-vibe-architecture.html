@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Enterprise Vibe Coding Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; padding: 40px; }
+
+    h1 { font-size: 20px; color: #94a3b8; margin-bottom: 32px; letter-spacing: 0.05em; }
+
+    .pipeline {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      margin-bottom: 48px;
+    }
+
+    .stage {
+      flex: 1;
+      position: relative;
+    }
+
+    .stage-label {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+      padding-left: 16px;
+    }
+
+    .stage-box {
+      background: #1e2433;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      padding: 16px;
+      margin-right: 0;
+      min-height: 180px;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      padding-top: 36px;
+      color: #4a5568;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .skill-card {
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .skill-card .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .skill-card .desc {
+      font-size: 11px;
+      font-weight: 400;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    .green  { background: #0d2818; border: 1px solid #166534; }
+    .green .dot { background: #22c55e; }
+
+    .blue   { background: #0c1a2e; border: 1px solid #1e40af; }
+    .blue .dot { background: #3b82f6; }
+
+    .purple { background: #1a0d2e; border: 1px solid #6b21a8; }
+    .purple .dot { background: #a855f7; }
+
+    .orange { background: #2e1a0d; border: 1px solid #c2410c; }
+    .orange .dot { background: #f97316; }
+
+    .gray   { background: #151b25; border: 1px solid #374151; }
+    .gray .dot { background: #6b7280; }
+
+    .hook-tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 99px;
+      margin-bottom: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .tag-precommit  { background: #1a2e1a; color: #4ade80; border: 1px solid #166534; }
+    .tag-prepush    { background: #1a1a2e; color: #818cf8; border: 1px solid #3730a3; }
+    .tag-external   { background: #2e2010; color: #fb923c; border: 1px solid #92400e; }
+    .tag-todo       { background: #2e1a00; color: #fbbf24; border: 1px solid #78350f; }
+
+    .section-title {
+      font-size: 12px;
+      color: #475569;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1e2433;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .bottom-card {
+      background: #1e2433;
+      border: 1px dashed #2d3748;
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .bottom-card .title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .bottom-card ul {
+      list-style: none;
+      font-size: 11px;
+      color: #64748b;
+      line-height: 2;
+    }
+
+    .bottom-card ul li::before {
+      content: "— ";
+      color: #334155;
+    }
+
+    .status-badge {
+      float: right;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 99px;
+    }
+    .done    { background: #14532d; color: #86efac; }
+    .todo    { background: #451a03; color: #fcd34d; }
+    .ext     { background: #1e1b4b; color: #a5b4fc; }
+  </style>
+</head>
+<body>
+
+  <h1>ENTERPRISE VIBE CODING — STABILITY ARCHITECTURE</h1>
+
+  <!-- Pipeline -->
+  <div class="pipeline">
+
+    <!-- WRITE -->
+    <div class="stage">
+      <div class="stage-label">코드 작성</div>
+      <div class="stage-box">
+        <div class="hook-tag tag-precommit">PreCommit</div>
+        <div class="skill-card green">
+          <div>
+            <div class="dot" style="background:#22c55e; width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;"></div>
+            tdd-companion
+            <span class="status-badge done">DONE</span>
+          </div>
+        </div>
+        <div style="font-size:11px; color:#4b5563; padding-left:4px; line-height:1.8;">
+          · 스코프 판단 (단일/멀티 모드)<br>
+          · 레이어 기반 그룹핑<br>
+          · 유닛 + 회귀 테스트 자동 생성<br>
+          · 80% 커버리지 목표
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- REVIEW -->
+    <div class="stage">
+      <div class="stage-label">리뷰 / 보안</div>
+      <div class="stage-box">
+        <div class="hook-tag tag-prepush">PrePush</div>
+        <div class="skill-card blue">
+          <div>
+            <div class="dot" style="background:#3b82f6; width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;"></div>
+            code-reviewer
+            <span class="status-badge done">DONE</span>
+          </div>
+        </div>
+        <div style="font-size:11px; color:#4b5563; padding-left:4px; line-height:1.8; margin-bottom:10px;">
+          · 로직 오류 / 성능 문제<br>
+          · PASS / REJECT 판정
+        </div>
+        <div class="skill-card purple">
+          <div>
+            <div class="dot" style="background:#a855f7; width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;"></div>
+            security-guard
+            <span class="status-badge todo">TODO</span>
+          </div>
+        </div>
+        <div style="font-size:11px; color:#4b5563; padding-left:4px; line-height:1.8;">
+          · 인증/인가 누락<br>
+          · Injection / XSS<br>
+          · 아키텍처 의존 방향 위반
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- COMMIT/PUSH -->
+    <div class="stage">
+      <div class="stage-label">커밋 / 머지</div>
+      <div class="stage-box">
+        <div class="hook-tag tag-precommit">PreCommit + PrePush</div>
+        <div class="skill-card orange">
+          <div>
+            <div class="dot" style="background:#f97316; width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;"></div>
+            git-convention
+            <span class="status-badge done">DONE</span>
+          </div>
+        </div>
+        <div style="font-size:11px; color:#4b5563; padding-left:4px; line-height:1.8;">
+          · 브랜치 네이밍 강제<br>
+          · 커밋 메시지 컨벤션<br>
+          · 훅 체인 오케스트레이션<br>
+          · PR 흐름 관리
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- RUNTIME -->
+    <div class="stage">
+      <div class="stage-label">런타임 / 배포 후</div>
+      <div class="stage-box">
+        <div class="hook-tag tag-external">External</div>
+        <div class="skill-card gray">
+          <div>
+            <div class="dot" style="background:#6b7280; width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;"></div>
+            에러 모니터링
+            <span class="status-badge ext">외부 도구</span>
+          </div>
+        </div>
+        <div style="font-size:11px; color:#4b5563; padding-left:4px; line-height:1.8;">
+          · Sentry / Datadog<br>
+          · 런타임 오류 감지<br>
+          · Claude 개입 영역 아님
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom: Hooks & Coverage -->
+  <div class="section-title">세부 구성</div>
+  <div class="bottom-grid">
+
+    <div class="bottom-card">
+      <div class="title" style="color:#4ade80;">
+        훅 체인 (git-convention)
+        <span class="status-badge done">DONE</span>
+      </div>
+      <ul>
+        <li>PreCommit → tdd-companion</li>
+        <li>PrePush → code-reviewer</li>
+        <li>PrePush → security-guard (TODO)</li>
+        <li>PreCommit → .env 패턴 감지 훅</li>
+      </ul>
+    </div>
+
+    <div class="bottom-card">
+      <div class="title" style="color:#fbbf24;">
+        security-guard 스킬 (TODO)
+        <span class="status-badge todo">TODO</span>
+      </div>
+      <ul>
+        <li>인증/인가 누락 탐지</li>
+        <li>SQL Injection / XSS</li>
+        <li>민감 정보 하드코딩</li>
+        <li>레이어 의존 방향 위반</li>
+        <li>OWASP Top 10 기준</li>
+      </ul>
+    </div>
+
+    <div class="bottom-card">
+      <div class="title" style="color:#94a3b8;">
+        환경 관리 (훅으로 처리)
+        <span class="status-badge todo">TODO</span>
+      </div>
+      <ul>
+        <li>.env 커밋 방지 훅</li>
+        <li>secrets 패턴 감지</li>
+        <li>스킬 불필요 — 단순 훅으로 충분</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- Coverage summary -->
+  <div style="margin-top: 24px; background: #1e2433; border: 1px solid #2d3748; border-radius: 8px; padding: 16px 20px;">
+    <div class="section-title" style="margin-bottom: 12px;">현재 안정성 커버리지 추정</div>
+    <div style="display: flex; gap: 32px; font-size: 12px;">
+      <div>
+        <div style="color: #4ade80; font-weight: 700; font-size: 20px;">~45%</div>
+        <div style="color: #4b5563;">현재 (tdd + git-convention + code-reviewer)</div>
+      </div>
+      <div>
+        <div style="color: #fbbf24; font-weight: 700; font-size: 20px;">~65%</div>
+        <div style="color: #4b5563;">security-guard + 환경 훅 추가 후</div>
+      </div>
+      <div>
+        <div style="color: #94a3b8; font-weight: 700; font-size: 20px;">~80%</div>
+        <div style="color: #4b5563;">외부 모니터링 연동 후 (이론상 한계)</div>
+      </div>
+    </div>
+    <div style="font-size: 11px; color: #374151; margin-top: 12px;">
+      * 나머지 20%는 도메인 로직 복잡도, 팀 숙련도, 인프라 안정성 등 자동화 불가 영역
+    </div>
+  </div>
+
+</body>
+</html>

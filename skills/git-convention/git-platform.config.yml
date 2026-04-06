@@ -1,0 +1,11 @@
+# Git 플랫폼 설정
+# platform: github | gitea | gitlab
+# 인증 정보(토큰)는 환경변수로 관리합니다 — 여기에 절대 입력하지 마세요.
+#
+# Gitea:  export GITEA_HOST=http://your-gitea-server
+#         export GITEA_TOKEN=your_token
+# GitLab: export GITLAB_HOST=https://gitlab.com  (self-hosted면 해당 주소)
+#         export GITLAB_TOKEN=your_token
+# GitHub: gh auth login  (별도 환경변수 불필요)
+
+platform: github
