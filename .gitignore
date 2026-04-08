@@ -5,3 +5,11 @@ dist/
 backend/data/
 backend/src/storage/skills/*
 !backend/src/storage/skills/.gitkeep
+
+# Harness Lab 로컬 데이터
+.harness-lab/
+
+# 내부 워크스페이스
+.agent/
+.agents/
+.skill-creator-workspace/

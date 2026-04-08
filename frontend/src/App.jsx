@@ -3,6 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import SkillListPage from './pages/SkillListPage';
 import SkillDetailPage from './pages/SkillDetailPage';
 import UploadPage from './pages/UploadPage';
+import HarnessLabPage from './pages/HarnessLabPage';
 
 function SunIcon() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
   }, [dark]);
 
   const isUpload = location.pathname === '/upload';
+  const isLab = location.pathname === '/lab';
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-[#09090f]" style={{ transition: 'background-color 0.3s ease' }}>
@@ -67,12 +69,22 @@ export default function App() {
             <Link
               to="/"
               className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-150 ${
-                !isUpload
+                !isUpload && !isLab
                   ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               Browse
+            </Link>
+            <Link
+              to="/lab"
+              className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-150 ${
+                isLab
+                  ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Harness Lab
             </Link>
             <Link
               to="/upload"
@@ -103,6 +115,7 @@ export default function App() {
           <Route path="/" element={<SkillListPage />} />
           <Route path="/skills/:id" element={<SkillDetailPage />} />
           <Route path="/upload" element={<UploadPage />} />
+          <Route path="/lab" element={<HarnessLabPage />} />
         </Routes>
       </main>
 

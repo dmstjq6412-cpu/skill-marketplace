@@ -22,3 +22,18 @@ export const getDownloadUrl = (id) => `${BASE}/skills/${id}/download`;
 
 export const fetchSkillFile = (skillId, fileId) =>
   api.get(`/skills/${skillId}/files/${fileId}`).then(r => r.data);
+
+export const fetchHarnessLogs = () =>
+  api.get('/harness/logs').then(r => r.data);
+
+export const fetchHarnessLog = (date) =>
+  api.get(`/harness/logs/${date}`).then(r => r.data);
+
+export const fetchHarnessBlueprints = () =>
+  api.get('/harness/blueprints').then(r => r.data);
+
+export const fetchHarnessBlueprint = (date) =>
+  api.get(`/harness/blueprints/${date}`).then(r => r.data);
+
+export const fetchHarnessBlueprintDiff = (from, to) =>
+  api.get('/harness/blueprints/diff', { params: { from, to } }).then(r => r.data);

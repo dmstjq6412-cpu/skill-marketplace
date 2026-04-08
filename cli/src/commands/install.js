@@ -74,11 +74,34 @@ const install = new Command('install')
         installed_at: new Date().toISOString(),
       }, null, 2));
 
+      // Inject CLAUDE_MD.md into ~/.claude/CLAUDE.md if present
+      const claudeMdRulesFile = path.join(targetDir, 'CLAUDE_MD.md');
+      let claudeMdInjected = false;
+      if (fs.existsSync(claudeMdRulesFile)) {
+        const globalClaudeMd = path.join(os.homedir(), '.claude', 'CLAUDE.md');
+        const rules = fs.readFileSync(claudeMdRulesFile, 'utf8').trim();
+        const startMarker = `<!-- skill:${skill.name} -->`;
+        const endMarker = `<!-- /skill:${skill.name} -->`;
+        const existing = fs.existsSync(globalClaudeMd)
+          ? fs.readFileSync(globalClaudeMd, 'utf8')
+          : '';
+        if (!existing.includes(startMarker)) {
+          const block = `\n${startMarker}\n${rules}\n${endMarker}\n`;
+          fs.mkdirSync(path.dirname(globalClaudeMd), { recursive: true });
+          fs.appendFileSync(globalClaudeMd, block, 'utf8');
+          claudeMdInjected = true;
+        }
+      }
+
       spinner.succeed(
         chalk.green(`Installed "${skill.name}" v${skill.version}`) +
         chalk.gray(`\n  → ${targetDir}`) +
         (isZip ? chalk.dim('  [directory]') : '')
       );
+
+      if (claudeMdInjected) {
+        console.log(chalk.cyan(`  ✦ CLAUDE.md rules injected`) + chalk.gray(` → ~/.claude/CLAUDE.md`));
+      }
 
       console.log();
       console.log(chalk.dim(`  Use in Claude Code: /${skill.name}`));

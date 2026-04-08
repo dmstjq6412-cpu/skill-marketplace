@@ -1,0 +1,22 @@
+graph LR
+    %% 스타일 정의
+    classDef user fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#000
+    classDef agent fill:#F3E5F5,stroke:#6A1B9A,stroke-width:2px,color:#000
+    classDef cli fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#000
+    classDef server fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#000
+
+    User["👤 사용자<br/><br/><b>'이메일 보내는 스킬<br/>찾아줄래?'</b>"]:::user
+    
+    Agent["🤖 Claude Agent<br/><br/>의도 파악 및 도구 매핑:<br/><br/><b><code>/marketplace list -s email</code></b>"]:::agent
+    
+    CLI["⚙️ CLI 도구 (Node.js)<br/>(SKILL.md)<br/><br/>파싱 및 스크립트 실행:<br/><br/><b><code>node index.js list --search email</code></b>"]:::cli
+    
+    Server["☁️ Marketplace API<br/><br/>DB 검색 및 응답:<br/><br/><b><code>[{id:48, name:'g-g-s'}]</code></b>"]:::server
+
+    User -->|1. 자연어 입력| Agent
+    Agent -->|2. 도구/파라미터 전달| CLI
+    CLI -->|3. HTTP GET API 호출| Server
+    
+    Server -.->|4. JSON 데이터 반환| CLI
+    CLI -.->|5. 터미널 표 형태로 렌더링| Agent
+    Agent -.->|6. 한국어로 최종 브리핑| User
