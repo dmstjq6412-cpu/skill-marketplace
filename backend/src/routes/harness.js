@@ -194,6 +194,8 @@ router.post('/blueprints', (req, res) => {
 
 // HTML 파일 경로 맵 (HARNESS_LAB_DIR 기준으로 프로젝트 루트 도출)
 const PROJECT_ROOT = path.dirname(HARNESS_LAB_DIR);
+const VIZ_DIR = path.join(HARNESS_LAB_DIR, 'viz');
+const ALLOWED_VIZ = ['todo-architecture', 'git-guard'];
 const HTML_FILES = {
   'todo-architecture': path.join(PROJECT_ROOT, 'enterprise-vibe-architecture.html'),
   'git-guard': path.join(os.homedir(), '.claude', 'skills', 'git-guard-claude', 'git-guard-flow.html'),
@@ -201,15 +203,45 @@ const HTML_FILES = {
 
 // GET /api/harness/html/:name
 router.get('/html/:name', (req, res) => {
-  const filePath = HTML_FILES[req.params.name];
-  if (!filePath) {
-    return res.status(404).json({ error: `Unknown html: ${req.params.name}` });
+  const { name } = req.params;
+  if (!ALLOWED_VIZ.includes(name)) {
+    return res.status(404).json({ error: `Unknown html: ${name}` });
   }
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: `File not found: ${filePath}` });
+  // 1) 로컬 하드코딩 경로 확인
+  const localPath = HTML_FILES[name];
+  if (localPath && fs.existsSync(localPath)) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(fs.readFileSync(localPath, 'utf8'));
   }
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(fs.readFileSync(filePath, 'utf8'));
+  // 2) .harness-lab/viz/ 폴백
+  const vizPath = path.join(VIZ_DIR, `${name}.html`);
+  if (fs.existsSync(vizPath)) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(fs.readFileSync(vizPath, 'utf8'));
+  }
+  return res.status(404).json({ error: `File not found: ${name}` });
+});
+
+// POST /api/harness/html/:name
+router.post('/html/:name', (req, res) => {
+  try {
+    const { name } = req.params;
+    if (!ALLOWED_VIZ.includes(name)) {
+      return res.status(400).json({ error: `Unknown viz name: ${name}. Allowed: ${ALLOWED_VIZ.join(', ')}` });
+    }
+    const { content } = req.body;
+    if (!content) {
+      return res.status(400).json({ error: 'content is required' });
+    }
+    ensureDirs();
+    if (!fs.existsSync(VIZ_DIR)) fs.mkdirSync(VIZ_DIR, { recursive: true });
+    const filePath = path.join(VIZ_DIR, `${name}.html`);
+    fs.writeFileSync(filePath, content, 'utf8');
+    res.status(201).json({ name, path: filePath });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save html' });
+  }
 });
 
 export default router;
