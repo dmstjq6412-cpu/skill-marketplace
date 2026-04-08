@@ -25,3 +25,23 @@ CREATE TABLE IF NOT EXISTS skill_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_skill_files_skill_id ON skill_files(skill_id);
+
+CREATE TABLE IF NOT EXISTS harness_logs (
+    date        TEXT PRIMARY KEY,
+    content     TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS harness_blueprints (
+    date        TEXT PRIMARY KEY,
+    data        JSONB NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS harness_viz (
+    name        TEXT PRIMARY KEY,
+    content     TEXT NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

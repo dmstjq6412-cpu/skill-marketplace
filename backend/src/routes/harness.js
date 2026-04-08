@@ -1,39 +1,21 @@
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { getPool } from '../db/database.js';
 
 const router = express.Router();
-
-const HARNESS_LAB_DIR = process.env.HARNESS_LAB_DIR
-  ? path.resolve(process.env.HARNESS_LAB_DIR)
-  : path.resolve(process.cwd(), '.harness-lab');
-
-const LOGS_DIR = path.join(HARNESS_LAB_DIR, 'logs');
-const BLUEPRINTS_DIR = path.join(HARNESS_LAB_DIR, 'blueprints');
-
-function ensureDirs() {
-  [HARNESS_LAB_DIR, LOGS_DIR, BLUEPRINTS_DIR].forEach(dir => {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  });
-}
+const ALLOWED_VIZ = ['todo-architecture', 'git-guard'];
 
 // GET /api/harness/logs
-router.get('/logs', (req, res) => {
+router.get('/logs', async (req, res) => {
   try {
-    ensureDirs();
-    const files = fs.existsSync(LOGS_DIR)
-      ? fs.readdirSync(LOGS_DIR).filter(f => f.endsWith('.md')).sort().reverse()
-      : [];
-
-    const logs = files.map(f => {
-      const date = f.replace('.md', '');
-      const content = fs.readFileSync(path.join(LOGS_DIR, f), 'utf8');
-      const summaryMatch = content.match(/## 작업 요약\n([\s\S]*?)(?=\n##|$)/);
-      const summary = summaryMatch ? summaryMatch[1].trim().slice(0, 120) : '';
-      return { date, summary };
-    });
-
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `SELECT date, substring(content from '## 작업 요약\n([\\s\\S]*?)(?=\n##|$)') AS summary
+       FROM harness_logs ORDER BY date DESC`
+    );
+    const logs = rows.map(r => ({
+      date: r.date,
+      summary: (r.summary || '').trim().slice(0, 120),
+    }));
     res.json({ logs });
   } catch (err) {
     console.error(err);
@@ -42,18 +24,16 @@ router.get('/logs', (req, res) => {
 });
 
 // GET /api/harness/logs/:date
-router.get('/logs/:date', (req, res) => {
+router.get('/logs/:date', async (req, res) => {
   try {
     const { date } = req.params;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
     }
-    const filePath = path.join(LOGS_DIR, `${date}.md`);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Log not found' });
-    }
-    const content = fs.readFileSync(filePath, 'utf8');
-    res.json({ date, content });
+    const pool = getPool();
+    const { rows } = await pool.query('SELECT date, content FROM harness_logs WHERE date = $1', [date]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Log not found' });
+    res.json(rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to read log' });
@@ -61,19 +41,18 @@ router.get('/logs/:date', (req, res) => {
 });
 
 // POST /api/harness/logs
-router.post('/logs', (req, res) => {
+router.post('/logs', async (req, res) => {
   try {
-    ensureDirs();
     const { date, content } = req.body;
-    if (!date || !content) {
-      return res.status(400).json({ error: 'date and content are required' });
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
-    }
-    const filePath = path.join(LOGS_DIR, `${date}.md`);
-    fs.writeFileSync(filePath, content, 'utf8');
-    res.status(201).json({ date, path: filePath });
+    if (!date || !content) return res.status(400).json({ error: 'date and content are required' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO harness_logs (date, content) VALUES ($1, $2)
+       ON CONFLICT (date) DO UPDATE SET content = $2, updated_at = NOW()`,
+      [date, content]
+    );
+    res.status(201).json({ date });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save log' });
@@ -81,23 +60,15 @@ router.post('/logs', (req, res) => {
 });
 
 // GET /api/harness/blueprints
-router.get('/blueprints', (req, res) => {
+router.get('/blueprints', async (req, res) => {
   try {
-    ensureDirs();
-    const files = fs.existsSync(BLUEPRINTS_DIR)
-      ? fs.readdirSync(BLUEPRINTS_DIR).filter(f => f.endsWith('.json')).sort().reverse()
-      : [];
-
-    const blueprints = files.map(f => {
-      const date = f.replace('.json', '');
-      try {
-        const data = JSON.parse(fs.readFileSync(path.join(BLUEPRINTS_DIR, f), 'utf8'));
-        return { date, coverage: data.coverage, session_summary: data.session_summary };
-      } catch {
-        return { date };
-      }
-    });
-
+    const pool = getPool();
+    const { rows } = await pool.query('SELECT date, data FROM harness_blueprints ORDER BY date DESC');
+    const blueprints = rows.map(r => ({
+      date: r.date,
+      coverage: r.data.coverage,
+      session_summary: r.data.session_summary,
+    }));
     res.json({ blueprints });
   } catch (err) {
     console.error(err);
@@ -106,48 +77,30 @@ router.get('/blueprints', (req, res) => {
 });
 
 // GET /api/harness/blueprints/diff?from=YYYY-MM-DD&to=YYYY-MM-DD
-// NOTE: must be registered BEFORE /blueprints/:date to avoid 'diff' matching as :date
-router.get('/blueprints/diff', (req, res) => {
+router.get('/blueprints/diff', async (req, res) => {
   try {
     const { from, to } = req.query;
-    if (!from || !to) {
-      return res.status(400).json({ error: 'from and to query params are required' });
-    }
+    if (!from || !to) return res.status(400).json({ error: 'from and to query params are required' });
+    const pool = getPool();
+    const { rows } = await pool.query('SELECT date, data FROM harness_blueprints WHERE date IN ($1, $2)', [from, to]);
+    const map = Object.fromEntries(rows.map(r => [r.date, r.data]));
+    if (!map[from]) return res.status(404).json({ error: `Blueprint for ${from} not found` });
+    if (!map[to]) return res.status(404).json({ error: `Blueprint for ${to} not found` });
 
-    const fromPath = path.join(BLUEPRINTS_DIR, `${from}.json`);
-    const toPath = path.join(BLUEPRINTS_DIR, `${to}.json`);
-
-    if (!fs.existsSync(fromPath)) return res.status(404).json({ error: `Blueprint for ${from} not found` });
-    if (!fs.existsSync(toPath)) return res.status(404).json({ error: `Blueprint for ${to} not found` });
-
-    const fromData = JSON.parse(fs.readFileSync(fromPath, 'utf8'));
-    const toData = JSON.parse(fs.readFileSync(toPath, 'utf8'));
-
-    const fromSkills = Object.fromEntries((fromData.skills || []).map(s => [s.name, s]));
-    const toSkills = Object.fromEntries((toData.skills || []).map(s => [s.name, s]));
-
+    const fromSkills = Object.fromEntries((map[from].skills || []).map(s => [s.name, s]));
+    const toSkills = Object.fromEntries((map[to].skills || []).map(s => [s.name, s]));
     const allNames = new Set([...Object.keys(fromSkills), ...Object.keys(toSkills)]);
     const changes = [];
 
     allNames.forEach(name => {
       const before = fromSkills[name];
       const after = toSkills[name];
-      if (!before) {
-        changes.push({ name, type: 'added', after });
-      } else if (!after) {
-        changes.push({ name, type: 'removed', before });
-      } else if (before.status !== after.status || before.version !== after.version) {
-        changes.push({ name, type: 'changed', before, after });
-      }
+      if (!before) changes.push({ name, type: 'added', after });
+      else if (!after) changes.push({ name, type: 'removed', before });
+      else if (before.status !== after.status || before.version !== after.version) changes.push({ name, type: 'changed', before, after });
     });
 
-    res.json({
-      from,
-      to,
-      coverage_before: fromData.coverage,
-      coverage_after: toData.coverage,
-      changes,
-    });
+    res.json({ from, to, coverage_before: map[from].coverage, coverage_after: map[to].coverage, changes });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to compute diff' });
@@ -155,18 +108,14 @@ router.get('/blueprints/diff', (req, res) => {
 });
 
 // GET /api/harness/blueprints/:date
-router.get('/blueprints/:date', (req, res) => {
+router.get('/blueprints/:date', async (req, res) => {
   try {
     const { date } = req.params;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
-    }
-    const filePath = path.join(BLUEPRINTS_DIR, `${date}.json`);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Blueprint not found' });
-    }
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    res.json(data);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+    const pool = getPool();
+    const { rows } = await pool.query('SELECT data FROM harness_blueprints WHERE date = $1', [date]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Blueprint not found' });
+    res.json(rows[0].data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to read blueprint' });
@@ -174,70 +123,55 @@ router.get('/blueprints/:date', (req, res) => {
 });
 
 // POST /api/harness/blueprints
-router.post('/blueprints', (req, res) => {
+router.post('/blueprints', async (req, res) => {
   try {
-    ensureDirs();
     const blueprint = req.body;
     const { date } = blueprint;
     if (!date) return res.status(400).json({ error: 'date is required' });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
-    }
-    const filePath = path.join(BLUEPRINTS_DIR, `${date}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(blueprint, null, 2), 'utf8');
-    res.status(201).json({ date, path: filePath });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO harness_blueprints (date, data) VALUES ($1, $2)
+       ON CONFLICT (date) DO UPDATE SET data = $2, updated_at = NOW()`,
+      [date, blueprint]
+    );
+    res.status(201).json({ date });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save blueprint' });
   }
 });
 
-// HTML 파일 경로 맵 (HARNESS_LAB_DIR 기준으로 프로젝트 루트 도출)
-const PROJECT_ROOT = path.dirname(HARNESS_LAB_DIR);
-const VIZ_DIR = path.join(HARNESS_LAB_DIR, 'viz');
-const ALLOWED_VIZ = ['todo-architecture', 'git-guard'];
-const HTML_FILES = {
-  'todo-architecture': path.join(PROJECT_ROOT, 'enterprise-vibe-architecture.html'),
-  'git-guard': path.join(os.homedir(), '.claude', 'skills', 'git-guard-claude', 'git-guard-flow.html'),
-};
-
 // GET /api/harness/html/:name
-router.get('/html/:name', (req, res) => {
+router.get('/html/:name', async (req, res) => {
   const { name } = req.params;
-  if (!ALLOWED_VIZ.includes(name)) {
-    return res.status(404).json({ error: `Unknown html: ${name}` });
-  }
-  // 1) 로컬 하드코딩 경로 확인
-  const localPath = HTML_FILES[name];
-  if (localPath && fs.existsSync(localPath)) {
+  if (!ALLOWED_VIZ.includes(name)) return res.status(404).json({ error: `Unknown html: ${name}` });
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query('SELECT content FROM harness_viz WHERE name = $1', [name]);
+    if (rows.length === 0) return res.status(404).json({ error: `File not found: ${name}` });
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.send(fs.readFileSync(localPath, 'utf8'));
+    res.send(rows[0].content);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read html' });
   }
-  // 2) .harness-lab/viz/ 폴백
-  const vizPath = path.join(VIZ_DIR, `${name}.html`);
-  if (fs.existsSync(vizPath)) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.send(fs.readFileSync(vizPath, 'utf8'));
-  }
-  return res.status(404).json({ error: `File not found: ${name}` });
 });
 
 // POST /api/harness/html/:name
-router.post('/html/:name', (req, res) => {
+router.post('/html/:name', async (req, res) => {
   try {
     const { name } = req.params;
-    if (!ALLOWED_VIZ.includes(name)) {
-      return res.status(400).json({ error: `Unknown viz name: ${name}. Allowed: ${ALLOWED_VIZ.join(', ')}` });
-    }
+    if (!ALLOWED_VIZ.includes(name)) return res.status(400).json({ error: `Unknown viz name: ${name}. Allowed: ${ALLOWED_VIZ.join(', ')}` });
     const { content } = req.body;
-    if (!content) {
-      return res.status(400).json({ error: 'content is required' });
-    }
-    ensureDirs();
-    if (!fs.existsSync(VIZ_DIR)) fs.mkdirSync(VIZ_DIR, { recursive: true });
-    const filePath = path.join(VIZ_DIR, `${name}.html`);
-    fs.writeFileSync(filePath, content, 'utf8');
-    res.status(201).json({ name, path: filePath });
+    if (!content) return res.status(400).json({ error: 'content is required' });
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO harness_viz (name, content) VALUES ($1, $2)
+       ON CONFLICT (name) DO UPDATE SET content = $2, updated_at = NOW()`,
+      [name, content]
+    );
+    res.status(201).json({ name });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save html' });
