@@ -2,6 +2,10 @@
 import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprint, fetchHarnessBlueprintDiff } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
 
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
+
 const TEXT = {
   vizTodoLabel: '\uC5D4\uD130\uD504\uB77C\uC774\uC988 \uBC14\uC774\uBE0C \uC544\uD0A4\uD14D\uCC98',
   vizTodoHint: '\uC544\uD0A4\uD14D\uCC98, \uC6CC\uD06C\uD50C\uB85C\uC6B0 \uAD6C\uC870, TODO \uC2DC\uC2A4\uD15C \uC124\uACC4\uB97C \uB2E4\uB8EC \uB0A0\uC5D0 \uD655\uC778\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.',
@@ -460,7 +464,7 @@ export default function HarnessLabPage() {
 
       {tab === 'viz' && <div className="space-y-4">
         <div className="grid gap-3 md:grid-cols-2">{Object.entries(VIZ).map(([key, item]) => <button key={key} type="button" onClick={() => setActiveViz(key)} className="text-left px-4 py-4 rounded-2xl border bg-white dark:bg-[#111218]"><p className="text-sm font-semibold">{item.label}</p><p className="mt-1 text-xs text-slate-500">{item.hint}</p></button>)}</div>
-        {!activeViz ? <div className="h-80 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.selectViz}</div> : <div className="space-y-3"><p className="text-sm text-slate-500">{VIZ[activeViz].hint}</p><div className="rounded-2xl border border-slate-200 overflow-hidden bg-white" style={{ height: '78vh' }}><iframe key={activeViz} src={`/api/harness/html/${activeViz}`} className="w-full h-full border-0" title={activeViz} sandbox="allow-scripts allow-same-origin" /></div></div>}
+        {!activeViz ? <div className="h-80 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.selectViz}</div> : <div className="space-y-3"><p className="text-sm text-slate-500">{VIZ[activeViz].hint}</p><div className="rounded-2xl border border-slate-200 overflow-hidden bg-white" style={{ height: '78vh' }}><iframe key={activeViz} src={`${API_BASE}/harness/html/${activeViz}`} className="w-full h-full border-0" title={activeViz} sandbox="allow-scripts allow-same-origin" /></div></div>}
       </div>}
     </div>
   );
