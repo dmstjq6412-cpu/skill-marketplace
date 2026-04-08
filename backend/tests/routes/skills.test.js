@@ -180,6 +180,130 @@ describe('POST / (upload skill)', () => {
 });
 
 // ============================================================
+// [BUG FIX] author 필드 누락 시 400 반환 — 회귀 테스트
+// 버그: author가 없거나 공백만 있어도 업로드가 성공하는 문제
+// 수정: author를 trim() 한 뒤 falsy 체크하여 공백 문자열도 거부
+// ============================================================
+describe('POST / — author 필드 검증 (버그 수정 회귀 테스트)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPool.connect.mockResolvedValue(mockClient);
+    mockClient.query.mockImplementation((sql) => {
+      if (sql.includes('INSERT INTO skills')) return Promise.resolve({ rows: [{ id: 1 }] });
+      return Promise.resolve({ rows: [] });
+    });
+    mockClient.release.mockResolvedValue(undefined);
+  });
+
+  // [회귀] 핵심 버그 케이스: author 필드 자체가 없을 때
+  it('[회귀] author 필드 없이 업로드하면 400 반환', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'my-skill')
+      // author 필드 미포함
+      .attach('skill_file', zipBuf, 'my-skill.zip');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/author/);
+  });
+
+  // [회귀] 빈 문자열 author
+  it('[회귀] author가 빈 문자열이면 400 반환', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'my-skill')
+      .field('author', '')
+      .attach('skill_file', zipBuf, 'my-skill.zip');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/author/);
+  });
+
+  // [회귀] 공백만 있는 author (기존 !author 체크로는 통과되던 케이스)
+  it('[회귀] author가 공백 문자열이면 400 반환', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'my-skill')
+      .field('author', '   ')
+      .attach('skill_file', zipBuf, 'my-skill.zip');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/author/);
+  });
+
+  // [회귀] DB에 INSERT가 호출되지 않아야 함 (author 없을 때)
+  it('[회귀] author 없으면 DB INSERT가 호출되지 않음', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    await request(buildApp())
+      .post('/')
+      .field('name', 'my-skill')
+      .attach('skill_file', zipBuf, 'my-skill.zip');
+
+    const insertCalls = mockClient.query.mock.calls.filter(
+      ([sql]) => sql && sql.includes('INSERT INTO skills')
+    );
+    expect(insertCalls).toHaveLength(0);
+    expect(mockPool.connect).not.toHaveBeenCalled();
+  });
+
+  // [경계값] 정상 author (공백 앞뒤 포함) → 업로드 성공
+  it('author에 앞뒤 공백이 있어도 trim 후 유효하면 201 반환', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'my-skill')
+      .field('author', '  alice  ')
+      .attach('skill_file', zipBuf, 'my-skill.zip');
+
+    expect(res.status).toBe(201);
+  });
+
+  // [경계값] name 없는 경우 기존 동작 유지
+  it('name 없이 업로드하면 400 반환', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('author', 'alice')
+      .attach('skill_file', zipBuf, 'my-skill.zip');
+
+    expect(res.status).toBe(400);
+  });
+
+  // [경계값] 파일 없는 경우 기존 동작 유지
+  it('파일 없이 업로드하면 400 반환', async () => {
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'my-skill')
+      .field('author', 'alice');
+
+    expect(res.status).toBe(400);
+  });
+
+  // [happy path] name + author + file 모두 있으면 201 반환
+  it('name, author, file 모두 있으면 201 반환', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'valid-skill')
+      .field('author', 'bob')
+      .attach('skill_file', zipBuf, 'valid-skill.zip');
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe(1);
+  });
+});
+
+// ============================================================
 // GET /:id
 // ============================================================
 describe('GET /:id (skill detail)', () => {
@@ -280,5 +404,48 @@ describe('GET /:id/files/:fileId (reference file content)', () => {
 
     const res = await request(buildApp()).get('/1/files/999');
     expect(res.status).toBe(404);
+  });
+});
+
+// ============================================================
+// POST /:id/download
+// ============================================================
+describe('POST /:id/download (다운로드 수 증가)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('정상 요청 시 downloads +1 후 id·downloads 반환', async () => {
+    mockPool.query.mockResolvedValue({
+      rows: [{ id: 1, downloads: 5 }],
+    });
+
+    const res = await request(buildApp()).post('/1/download');
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(1);
+    expect(res.body.downloads).toBe(5);
+    expect(mockPool.query).toHaveBeenCalledWith(
+      expect.stringContaining('downloads = downloads + 1'),
+      [1]
+    );
+  });
+
+  it('존재하지 않는 스킬 id → 404 반환', async () => {
+    mockPool.query.mockResolvedValue({ rows: [] });
+
+    const res = await request(buildApp()).post('/999/download');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found/i);
+  });
+
+  it('DB 오류 발생 시 500 반환', async () => {
+    mockPool.query.mockRejectedValue(new Error('DB connection failed'));
+
+    const res = await request(buildApp()).post('/1/download');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toMatch(/database error/i);
   });
 });

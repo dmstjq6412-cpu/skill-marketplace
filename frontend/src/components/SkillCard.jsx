@@ -23,14 +23,39 @@ function getGradient(name) {
   return ICON_GRADIENTS[Math.abs(hash) % ICON_GRADIENTS.length];
 }
 
-export default function SkillCard({ id, name, version, author, description, downloads, created_at }) {
+/**
+ * SkillCard
+ *
+ * Props:
+ *   - name       {string}   스킬 이름
+ *   - author     {string}   작성자
+ *   - downloads  {number}   다운로드 수
+ *   - onSelect   {function} 카드 클릭 시 호출되는 콜백. 제공되지 않으면 상세 페이지로 이동.
+ *   - id         {number}   스킬 ID (onSelect 없을 때 navigate에 사용, 선택적)
+ *   - version    {string}   스킬 버전 (선택적)
+ *   - description {string}  스킬 설명 (선택적)
+ *   - created_at {string}   생성일 (선택적)
+ */
+export default function SkillCard({ id, name, version, author, description, downloads, created_at, onSelect }) {
   const navigate = useNavigate();
   const gradient = getGradient(name || '');
 
+  function handleClick() {
+    if (onSelect) {
+      onSelect({ id, name, version, author, description, downloads, created_at });
+    } else {
+      navigate(`/skills/${id}`);
+    }
+  }
+
   return (
     <div
-      onClick={() => navigate(`/skills/${id}`)}
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(); }}
       className="card-glow group bg-white dark:bg-[#111218] rounded-2xl border border-slate-200/80 dark:border-slate-800/80 p-5 cursor-pointer flex flex-col gap-3 hover:border-violet-300 dark:hover:border-violet-800/60 hover:shadow-lg dark:hover:shadow-none transition-all duration-200 animate-fade-in-up"
+      aria-label={`스킬 카드: ${name}`}
     >
       {/* Icon + Name row */}
       <div className="flex items-start gap-3">
@@ -64,7 +89,7 @@ export default function SkillCard({ id, name, version, author, description, down
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          <span>{downloads.toLocaleString()}</span>
+          <span>{typeof downloads === 'number' ? downloads.toLocaleString() : 0}</span>
         </div>
       </div>
 

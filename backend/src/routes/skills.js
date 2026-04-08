@@ -131,9 +131,15 @@ router.get('/:id/files/:fileId', async (req, res) => {
 });
 
 // POST /api/skills
+// [BUG FIX] author 필드가 없거나 빈 문자열/공백만 있는 경우 400 반환
+// 기존: !author 는 빈 문자열('')에만 작동하고 공백(' ')은 통과시키는 문제 존재
+// 수정: author를 trim() 한 뒤 falsy 체크하여 공백 문자열도 거부
 router.post('/', upload.single('skill_file'), async (req, res) => {
   const { name, version = '1.0.0', author, description = '' } = req.body;
-  if (!name || !author || !req.file) {
+
+  // [FIX] author가 없거나, 빈 문자열이거나, 공백만 있으면 400 반환
+  const trimmedAuthor = (author || '').trim();
+  if (!name || !trimmedAuthor || !req.file) {
     return res.status(400).json({ error: 'name, author, and skill_file are required' });
   }
 
@@ -166,7 +172,7 @@ router.post('/', upload.single('skill_file'), async (req, res) => {
     const { rows } = await client.query(
       `INSERT INTO skills (name, version, author, description, readme, filename, file_type, file_data)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [name, version, author, description, readme, req.file.originalname, isZip ? 'zip' : 'md', req.file.buffer]
+      [name, version, trimmedAuthor, description, readme, req.file.originalname, isZip ? 'zip' : 'md', req.file.buffer]
     );
     const skillId = rows[0].id;
 
@@ -185,6 +191,23 @@ router.post('/', upload.single('skill_file'), async (req, res) => {
     res.status(500).json({ error: 'Database error' });
   } finally {
     client.release();
+  }
+});
+
+
+// POST /api/skills/:id/download
+router.post('/:id/download', async (req, res) => {
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query(
+      `UPDATE skills SET downloads = downloads + 1 WHERE id = $1 RETURNING id, downloads`,
+      [Number(req.params.id)]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Skill not found' });
+    res.json({ id: rows[0].id, downloads: rows[0].downloads });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 

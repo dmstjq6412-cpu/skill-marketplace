@@ -1,0 +1,25 @@
+# 정적 분석 도구 설정
+# enabled: true  → 커밋 시 자동 실행
+# enabled: false → skip (마치 도구가 없는 것처럼 동작)
+
+tools:
+  eslint:
+    enabled: true
+    reference: references/eslint.md
+
+  sonarqube:
+    enabled: true
+    reference: references/sonarqube.md
+
+  # 추가 도구 예시 (필요 시 enabled: true로 변경)
+  # golangci-lint:
+  #   enabled: false
+  #   reference: references/golangci-lint.md
+
+  # ruff:
+  #   enabled: false
+  #   reference: references/ruff.md
+
+  # checkstyle:
+  #   enabled: false
+  #   reference: references/checkstyle.md
