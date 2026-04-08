@@ -464,7 +464,7 @@ export default function HarnessLabPage() {
 
       {tab === 'viz' && <div className="space-y-4">
         <div className="grid gap-3 md:grid-cols-2">{Object.entries(VIZ).map(([key, item]) => <button key={key} type="button" onClick={() => setActiveViz(key)} className="text-left px-4 py-4 rounded-2xl border bg-white dark:bg-[#111218]"><p className="text-sm font-semibold">{item.label}</p><p className="mt-1 text-xs text-slate-500">{item.hint}</p></button>)}</div>
-        {!activeViz ? <div className="h-80 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.selectViz}</div> : <div className="space-y-3"><p className="text-sm text-slate-500">{VIZ[activeViz].hint}</p><div className="rounded-2xl border border-slate-200 overflow-hidden bg-white" style={{ height: '78vh' }}><iframe key={activeViz} src={`${API_BASE}/harness/html/${activeViz}`} className="w-full h-full border-0" title={activeViz} sandbox="allow-scripts allow-same-origin" /></div></div>}
+        {!activeViz ? <div className="h-80 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.selectViz}</div> : <div className="space-y-3"><p className="text-sm text-slate-500">{VIZ[activeViz].hint}</p><div className="rounded-2xl border border-slate-200 overflow-hidden bg-white" style={{ height: '78vh' }}><iframe key={activeViz} src={`/viz/${activeViz}.html`} className="w-full h-full border-0" title={activeViz} sandbox="allow-scripts allow-same-origin" /></div></div>}
       </div>}
     </div>
   );
