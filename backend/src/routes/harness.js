@@ -218,13 +218,31 @@ router.get('/references', async (req, res) => {
   try {
     const { tag } = req.query;
     const pool = getPool();
-    let query = 'SELECT id, title, url, summary, tags, created_at FROM harness_references';
     const params = [];
+    let where = '';
     if (tag) {
-      query += ' WHERE tags @> $1';
+      where = ' WHERE r.tags @> $1';
       params.push(JSON.stringify([tag]));
     }
-    query += ' ORDER BY created_at DESC';
+    const query = `
+      SELECT r.id, r.title, r.url, r.summary, r.tags, r.created_at,
+             COALESCE(
+               json_agg(
+                 json_build_object(
+                   'skill', e.skill,
+                   'verdict', e.verdict,
+                   'gaps', e.gaps,
+                   'suggestions', e.suggestions,
+                   'date', e.date
+                 ) ORDER BY e.date DESC
+               ) FILTER (WHERE e.id IS NOT NULL),
+               '[]'
+             ) AS evaluations
+      FROM harness_references r
+      LEFT JOIN harness_evaluations e ON e.article_url = r.url
+      ${where}
+      GROUP BY r.id
+      ORDER BY r.created_at DESC`;
     const { rows } = await pool.query(query, params);
     res.json({ references: rows });
   } catch (err) {
@@ -242,7 +260,11 @@ router.post('/references', async (req, res) => {
     const pool = getPool();
     const { rows } = await pool.query(
       `INSERT INTO harness_references (title, url, summary, tags, skills)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (url) DO UPDATE
+         SET title = EXCLUDED.title, summary = EXCLUDED.summary,
+             tags = EXCLUDED.tags, skills = EXCLUDED.skills
+       RETURNING id`,
       [title, url, summary, JSON.stringify(tags), JSON.stringify(skills)]
     );
     res.status(201).json({ id: rows[0].id });

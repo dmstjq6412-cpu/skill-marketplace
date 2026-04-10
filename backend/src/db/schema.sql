@@ -72,7 +72,7 @@ CREATE INDEX IF NOT EXISTS idx_harness_analysis_date ON harness_analysis(date DE
 CREATE TABLE IF NOT EXISTS harness_references (
     id          SERIAL PRIMARY KEY,
     title       TEXT NOT NULL,
-    url         TEXT NOT NULL,
+    url         TEXT NOT NULL UNIQUE,
     summary     TEXT,
     tags        JSONB NOT NULL DEFAULT '[]',
     skills      JSONB NOT NULL DEFAULT '[]',

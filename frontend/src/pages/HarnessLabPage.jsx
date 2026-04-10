@@ -534,28 +534,51 @@ export default function HarnessLabPage() {
                   <p className="text-xs mt-1 font-mono">{TEXT.runHarnessReference}</p>
                 </div>
               : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {filtered.map(ref => (
-                    <div key={ref.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-4 space-y-3 flex flex-col">
-                      <div className="flex items-start justify-between gap-2">
-                        <a href={ref.url} target="_blank" rel="noopener noreferrer"
-                          className="text-sm font-semibold text-slate-900 dark:text-white hover:text-violet-600 dark:hover:text-violet-400 transition-colors leading-snug">
-                          {ref.title}
-                        </a>
-                        <button type="button" onClick={() => handleDelete(ref.id)}
-                          className="shrink-0 text-slate-300 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                  {filtered.map(ref => {
+                    const verdictStyle = v => v === 'pass' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : v === 'needs-work' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+                    return (
+                      <div key={ref.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-4 space-y-3 flex flex-col">
+                        <div className="flex items-start justify-between gap-2">
+                          <a href={ref.url} target="_blank" rel="noopener noreferrer"
+                            className="text-sm font-semibold text-slate-900 dark:text-white hover:text-violet-600 dark:hover:text-violet-400 transition-colors leading-snug">
+                            {ref.title}
+                          </a>
+                          <button type="button" onClick={() => handleDelete(ref.id)}
+                            className="shrink-0 text-slate-300 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                        </div>
+                        {ref.summary && <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed flex-1">{ref.summary}</p>}
+                        <div className="flex flex-wrap gap-1.5">
+                          {(ref.tags || []).map(tag => (
+                            <button key={tag} type="button" onClick={() => setActiveTag(tag)}
+                              className="px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[11px] hover:bg-violet-100 transition-colors">
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                        {(ref.evaluations || []).length > 0 && (
+                          <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-2">
+                            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">스킬 평가</p>
+                            {ref.evaluations.map((ev, i) => (
+                              <div key={i} className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px] font-mono text-slate-600 dark:text-slate-300">{ev.skill}</span>
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${verdictStyle(ev.verdict)}`}>{ev.verdict}</span>
+                                </div>
+                                <ul className="space-y-0.5 ml-1">
+                                  {(ev.gaps || []).map((gap, j) => (
+                                    <li key={j} className="text-[11px] text-slate-500 dark:text-slate-400 flex gap-1">
+                                      <span className="text-slate-300 shrink-0">·</span>{gap}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-slate-300 dark:text-slate-600 font-mono">{new Date(ref.created_at).toLocaleDateString('ko-KR')}</p>
                       </div>
-                      {ref.summary && <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed flex-1">{ref.summary}</p>}
-                      <div className="flex flex-wrap gap-1.5">
-                        {(ref.tags || []).map(tag => (
-                          <button key={tag} type="button" onClick={() => setActiveTag(tag)}
-                            className="px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[11px] hover:bg-violet-100 transition-colors">
-                            {tag}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-slate-300 dark:text-slate-600 font-mono">{new Date(ref.created_at).toLocaleDateString('ko-KR')}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
             }
           </div>

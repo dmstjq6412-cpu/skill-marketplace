@@ -11,8 +11,11 @@ const mockFs = vi.hoisted(() => ({
   mkdirSync: vi.fn(),
 }));
 
+const mockPool = vi.hoisted(() => ({ query: vi.fn() }));
+
 // 'import fs from "fs"' expects a default export — wrap mockFs accordingly
 vi.mock('fs', () => ({ default: mockFs }));
+vi.mock('../../src/db/database.js', () => ({ getPool: () => mockPool }));
 
 // Import router AFTER mocking
 const { default: harnessRouter } = await import('../../src/routes/harness.js');
@@ -370,5 +373,46 @@ describe('GET /html/:name', () => {
     mockFs.readFileSync.mockReturnValue(HTML_CONTENT);
     const res = await request(buildApp()).get('/html/todo-architecture');
     expect(res.text).toContain('Enterprise Vibe Architecture');
+  });
+});
+
+// ============================================================
+// GET /references — evaluations join
+// ============================================================
+describe('GET /references', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('evaluations 없는 레퍼런스는 빈 배열 반환', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [{ id: 1, title: 'Article A', url: 'https://example.com', summary: 'summary', tags: ['ai'], created_at: '2026-04-10T00:00:00Z', evaluations: [] }],
+    });
+    const res = await request(buildApp()).get('/references');
+    expect(res.status).toBe(200);
+    expect(res.body.references[0].evaluations).toEqual([]);
+  });
+
+  it('evaluations가 있으면 skill·verdict·gaps 포함해서 반환', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [{
+        id: 2, title: 'Code Agent Orchestra', url: 'https://addyosmani.com/blog/code-agent-orchestra/',
+        summary: '...', tags: ['ai', 'workflow'], created_at: '2026-04-10T00:00:00Z',
+        evaluations: [{ skill: 'tdd-guard-claude', verdict: 'partial', gaps: ['계획 승인 단계 없음'], suggestions: [], date: '2026-04-10' }],
+      }],
+    });
+    const res = await request(buildApp()).get('/references');
+    expect(res.status).toBe(200);
+    const ev = res.body.references[0].evaluations[0];
+    expect(ev.skill).toBe('tdd-guard-claude');
+    expect(ev.verdict).toBe('partial');
+    expect(ev.gaps).toContain('계획 승인 단계 없음');
+  });
+
+  it('tag 필터 적용 시 WHERE 조건 포함된 쿼리 실행', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).get('/references?tag=ai');
+    expect(res.status).toBe(200);
+    const [sql, params] = mockPool.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE/);
+    expect(params[0]).toBe('["ai"]');
   });
 });
