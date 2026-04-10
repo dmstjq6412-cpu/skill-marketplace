@@ -59,86 +59,121 @@ router.post('/logs', async (req, res) => {
   }
 });
 
-// GET /api/harness/blueprints
+// GET /api/harness/blueprints — 스킬 목록 (각 스킬의 최신 entry + 총 기록 수)
 router.get('/blueprints', async (req, res) => {
   try {
     const pool = getPool();
-    const { rows } = await pool.query('SELECT date, data FROM harness_blueprints ORDER BY date DESC');
-    const blueprints = rows.map(r => ({
-      date: r.date,
-      coverage: r.data.coverage,
-      session_summary: r.data.session_summary,
+    const { rows } = await pool.query(`
+      SELECT DISTINCT ON (skill)
+        skill, date, change, reason, issues, articles,
+        COUNT(*) OVER (PARTITION BY skill) AS entry_count
+      FROM harness_blueprints
+      ORDER BY skill, date DESC
+    `);
+    const skills = rows.map(r => ({
+      skill: r.skill,
+      latest: { date: r.date, change: r.change, reason: r.reason },
+      entry_count: Number(r.entry_count),
     }));
-    res.json({ blueprints });
+    res.json({ skills });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to read blueprints' });
   }
 });
 
-// GET /api/harness/blueprints/diff?from=YYYY-MM-DD&to=YYYY-MM-DD
-router.get('/blueprints/diff', async (req, res) => {
+// GET /api/harness/blueprints/:skill — 특정 스킬의 전체 개선 히스토리
+router.get('/blueprints/:skill', async (req, res) => {
   try {
-    const { from, to } = req.query;
-    if (!from || !to) return res.status(400).json({ error: 'from and to query params are required' });
+    const { skill } = req.params;
     const pool = getPool();
-    const { rows } = await pool.query('SELECT date, data FROM harness_blueprints WHERE date IN ($1, $2)', [from, to]);
-    const map = Object.fromEntries(rows.map(r => [r.date, r.data]));
-    if (!map[from]) return res.status(404).json({ error: `Blueprint for ${from} not found` });
-    if (!map[to]) return res.status(404).json({ error: `Blueprint for ${to} not found` });
-
-    const fromSkills = Object.fromEntries((map[from].skills || []).map(s => [s.name, s]));
-    const toSkills = Object.fromEntries((map[to].skills || []).map(s => [s.name, s]));
-    const allNames = new Set([...Object.keys(fromSkills), ...Object.keys(toSkills)]);
-    const changes = [];
-
-    allNames.forEach(name => {
-      const before = fromSkills[name];
-      const after = toSkills[name];
-      if (!before) changes.push({ name, type: 'added', after });
-      else if (!after) changes.push({ name, type: 'removed', before });
-      else if (before.status !== after.status || before.version !== after.version) changes.push({ name, type: 'changed', before, after });
-    });
-
-    res.json({ from, to, coverage_before: map[from].coverage, coverage_after: map[to].coverage, changes });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to compute diff' });
-  }
-});
-
-// GET /api/harness/blueprints/:date
-router.get('/blueprints/:date', async (req, res) => {
-  try {
-    const { date } = req.params;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
-    const pool = getPool();
-    const { rows } = await pool.query('SELECT data FROM harness_blueprints WHERE date = $1', [date]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Blueprint not found' });
-    res.json(rows[0].data);
+    const { rows } = await pool.query(
+      'SELECT date, change, reason, issues, articles FROM harness_blueprints WHERE skill = $1 ORDER BY date DESC',
+      [skill]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: `Blueprint for skill "${skill}" not found` });
+    res.json({ skill, entries: rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to read blueprint' });
   }
 });
 
-// POST /api/harness/blueprints
+// POST /api/harness/blueprints — 스킬 개선 entry 저장
+// body: { skill, date, change, reason?, issues?, articles? }
 router.post('/blueprints', async (req, res) => {
   try {
-    const blueprint = req.body;
-    const { date } = blueprint;
+    const { skill, date, change, reason = '', issues = [], articles = [] } = req.body;
+    if (!skill) return res.status(400).json({ error: 'skill is required' });
     if (!date) return res.status(400).json({ error: 'date is required' });
+    if (!change) return res.status(400).json({ error: 'change is required' });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
     const pool = getPool();
     await pool.query(
-      `INSERT INTO harness_blueprints (date, data) VALUES ($1, $2)
-       ON CONFLICT (date) DO UPDATE SET data = $2, updated_at = NOW()`,
-      [date, blueprint]
+      `INSERT INTO harness_blueprints (skill, date, change, reason, issues, articles)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (skill, date) DO UPDATE
+         SET change = $3, reason = $4, issues = $5, articles = $6, updated_at = NOW()`,
+      [skill, date, change, reason, JSON.stringify(issues), JSON.stringify(articles)]
     );
-    res.status(201).json({ date });
+    res.status(201).json({ skill, date });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save blueprint' });
+  }
+});
+
+// GET /api/harness/analysis
+router.get('/analysis', async (req, res) => {
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query(
+      'SELECT id, date, branch, started_at, ended_at, git, pr, quality FROM harness_analysis ORDER BY date DESC'
+    );
+    res.json({ reports: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read analysis reports' });
+  }
+});
+
+// GET /api/harness/analysis/:id
+router.get('/analysis/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = getPool();
+    const { rows } = await pool.query('SELECT * FROM harness_analysis WHERE id = $1', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Report not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read analysis report' });
+  }
+});
+
+// POST /api/harness/analysis
+router.post('/analysis', async (req, res) => {
+  try {
+    const { date, branch, started_at, ended_at, git = {}, pr = null, quality = {} } = req.body;
+    if (!date || !branch || !started_at || !ended_at) {
+      return res.status(400).json({ error: 'date, branch, started_at, ended_at are required' });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+    }
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `INSERT INTO harness_analysis (date, branch, started_at, ended_at, git, pr, quality)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (date) DO UPDATE
+         SET branch = $2, started_at = $3, ended_at = $4, git = $5, pr = $6, quality = $7
+       RETURNING id`,
+      [date, branch, started_at, ended_at, JSON.stringify(git), pr ? JSON.stringify(pr) : null, JSON.stringify(quality)]
+    );
+    res.status(201).json({ id: rows[0].id, date });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save analysis report' });
   }
 });
 
@@ -175,6 +210,127 @@ router.post('/html/:name', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save html' });
+  }
+});
+
+// GET /api/harness/references
+router.get('/references', async (req, res) => {
+  try {
+    const { tag } = req.query;
+    const pool = getPool();
+    let query = 'SELECT id, title, url, summary, tags, created_at FROM harness_references';
+    const params = [];
+    if (tag) {
+      query += ' WHERE tags @> $1';
+      params.push(JSON.stringify([tag]));
+    }
+    query += ' ORDER BY created_at DESC';
+    const { rows } = await pool.query(query, params);
+    res.json({ references: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read references' });
+  }
+});
+
+// POST /api/harness/references
+router.post('/references', async (req, res) => {
+  try {
+    const { title, url, summary = '', tags = [], skills = [] } = req.body;
+    if (!title) return res.status(400).json({ error: 'title is required' });
+    if (!url) return res.status(400).json({ error: 'url is required' });
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `INSERT INTO harness_references (title, url, summary, tags, skills)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [title, url, summary, JSON.stringify(tags), JSON.stringify(skills)]
+    );
+    res.status(201).json({ id: rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save reference' });
+  }
+});
+
+// GET /api/harness/evaluations/:skill
+router.get('/evaluations/:skill', async (req, res) => {
+  try {
+    const { skill } = req.params;
+    const pool = getPool();
+    const { rows } = await pool.query(
+      'SELECT id, skill, date, article_title, article_url, gaps, suggestions, verdict, created_at FROM harness_evaluations WHERE skill = $1 ORDER BY date DESC',
+      [skill]
+    );
+    res.json({ skill, evaluations: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read evaluations' });
+  }
+});
+
+// POST /api/harness/evaluations
+router.post('/evaluations', async (req, res) => {
+  try {
+    const { skill, date, article_title, article_url, gaps = [], suggestions = [], verdict = 'partial' } = req.body;
+    if (!skill || !date || !article_title || !article_url) {
+      return res.status(400).json({ error: 'skill, date, article_title, article_url are required' });
+    }
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `INSERT INTO harness_evaluations (skill, date, article_title, article_url, gaps, suggestions, verdict)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [skill, date, article_title, article_url, JSON.stringify(gaps), JSON.stringify(suggestions), verdict]
+    );
+    res.status(201).json({ id: rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save evaluation' });
+  }
+});
+
+// GET /api/harness/reviews/:skill
+router.get('/reviews/:skill', async (req, res) => {
+  try {
+    const { skill } = req.params;
+    const pool = getPool();
+    const { rows } = await pool.query('SELECT skill, content, updated_at FROM harness_review_index WHERE skill = $1', [skill]);
+    if (rows.length === 0) return res.status(404).json({ error: `No review index for skill "${skill}"` });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read review index' });
+  }
+});
+
+// POST /api/harness/reviews/:skill — 인덱스 전체 덮어쓰기
+router.post('/reviews/:skill', async (req, res) => {
+  try {
+    const { skill } = req.params;
+    const { content } = req.body;
+    if (!content) return res.status(400).json({ error: 'content is required' });
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO harness_review_index (skill, content) VALUES ($1, $2)
+       ON CONFLICT (skill) DO UPDATE SET content = $2, updated_at = NOW()`,
+      [skill, content]
+    );
+    res.status(201).json({ skill });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save review index' });
+  }
+});
+
+// DELETE /api/harness/references/:id
+router.delete('/references/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = getPool();
+    await pool.query('DELETE FROM harness_references WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete reference' });
   }
 });
 

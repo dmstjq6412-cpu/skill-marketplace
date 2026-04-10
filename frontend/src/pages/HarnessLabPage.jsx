@@ -1,10 +1,17 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
-import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprint, fetchHarnessBlueprintDiff } from '../api/client';
+﻿import React, { useEffect, useState } from 'react';
+import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api';
+
+const GOLDEN_RULES = [
+  { num: 1, title: '목적 고수', desc: '모든 결정은 "코드 통제 + 토큰 밸런스"에 기여하는가로 판단한다.' },
+  { num: 2, title: '지금 문제 우선', desc: '이론적으로 좋아 보이는 것보다 지금 실제로 불편한 것을 먼저 푼다.' },
+  { num: 3, title: '단순한 게 이긴다', desc: '복잡한 설계가 나오면 더 단순한 방법이 없는지 먼저 물어본다.' },
+  { num: 4, title: '검증 전엔 확장 없음', desc: '현재 스킬이 실전에서 잘 동작하는지 확인하기 전에 새 스킬을 추가하지 않는다.' },
+];
 
 const TEXT = {
   vizTodoLabel: '\uC5D4\uD130\uD504\uB77C\uC774\uC988 \uBC14\uC774\uBE0C \uC544\uD0A4\uD14D\uCC98',
@@ -30,6 +37,15 @@ const TEXT = {
   logsTab: '\uB370\uC77C\uB9AC \uB85C\uADF8',
   blueprintTab: '\uBE14\uB8E8\uD504\uB9B0\uD2B8',
   vizTab: '\uC2DC\uAC01\uD654',
+  analysisTab: '\uC2DC\uBC94\uC6B4\uD589',
+  noAnalyses: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uC2DC\uBC94\uC6B4\uD589 \uB9AC\uD3EC\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
+  runHarnessAnalysis: '`/harness-analysis start` \uB85C \uC2DC\uBC94\uC6B4\uD589\uC744 \uC2DC\uC791\uD558\uC138\uC694.',
+  pickAnalysis: '\uC67C\uCABD\uC5D0\uC11C \uB9AC\uD3EC\uD2B8\uB97C \uC120\uD0DD\uD558\uBA74 \uC138\uBD80 \uC815\uBCF4\uB97C \uBCFC \uC218 \uC788\uC2B5\uB2C8\uB2E4.',
+  reportList: '\uC2DC\uBC94\uC6B4\uD589 \uBAA9\uB85D',
+  referencesTab: '\uCC38\uACE0\uC790\uB8CC',
+  noReferences: '\uC800\uC7A5\uB41C \uCC38\uACE0\uC790\uB8CC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
+  runHarnessReference: '`/harness-reference` \uB85C \uB9C1\uD06C\uB97C \uC800\uC7A5\uD558\uC138\uC694.',
+  allTags: '\uC804\uCCB4',
   logbook: '\uC138\uC158 \uB85C\uADF8\uBD81',
   noWrapups: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uB370\uC77C\uB9AC wrap-up\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessLog: '`/harness-log`\uB97C \uC2E4\uD589\uD574 \uCCAB \uAE30\uB85D\uC744 \uC800\uC7A5\uD558\uC138\uC694.',
@@ -38,38 +54,19 @@ const TEXT = {
   copyPrompt: '\uD504\uB86C\uD504\uD2B8 \uBCF5\uC0AC',
   copyWrapup: 'Wrap-up \uBCF5\uC0AC',
   openBlueprint: '\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC5F4\uAE30',
-  wrapupGuideTitle: '\uCD94\uCC9C wrap-up \uAD6C\uC131',
-  wrapupSection1: '\uC624\uB298 \uB17C\uC758',
-  wrapupSection2: '\uC624\uB298 \uAD6C\uD604',
-  wrapupSection3: '\uACB0\uC815\uD55C \uAC83',
-  wrapupSection4: '\uB9C9\uD78C \uC810',
-  wrapupSection5: '\uB0B4\uC77C \uBC14\uB85C \uD560 \uC77C',
   openViz: '\uC2DC\uAC01\uD654 \uC5F4\uAE30',
   copiedWrapup: 'wrap-up \uB9C8\uD06C\uB2E4\uC6B4\uC744 \uBCF5\uC0AC\uD588\uC2B5\uB2C8\uB2E4',
-  checklist1: '1. \uC624\uB298 \uBC14\uB010 \uC810\uC744 \uC801\uC2B5\uB2C8\uB2E4.',
-  checklist2: '2. \uC624\uB298 \uC2E4\uC81C\uB85C \uAD6C\uD604\uD55C \uAC83\uC744 \uC815\uB9AC\uD569\uB2C8\uB2E4.',
-  checklist3: '3. \uC624\uB298 \uB0B4\uB9B0 \uACB0\uC815\uACFC \uB0A8\uC740 \uB9C9\uD78C \uC810\uC744 \uB0A8\uAE41\uB2C8\uB2E4.',
-  checklist4: '4. \uB0B4\uC77C \uBC14\uB85C \uC2DC\uC791\uD560 \uC791\uC5C5\uACFC \uD504\uB86C\uD504\uD2B8\uB97C \uB0A8\uAE41\uB2C8\uB2E4.',
-  from: '\uAE30\uC900\uC77C',
-  to: '\uBE44\uAD50\uC77C',
-  pickDateOption: '\uB0A0\uC9DC \uC120\uD0DD',
-  refreshDiff: '\uBE44\uAD50 \uC0C8\uB85C\uACE0\uCE68',
-  blueprintList: '\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uBAA9\uB85D',
+  blueprintList: '\uC2A4\uD0AC \uBAA9\uB85D',
   noBlueprints: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uBE14\uB8E8\uD504\uB9B0\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
   generateWithHarness: '`/harness-log`\uC640 \uD568\uAED8 \uC0DD\uC131\uD574 \uBCF4\uC138\uC694.',
-  pickBlueprint: '\uB0A0\uC9DC\uB97C \uC120\uD0DD\uD558\uBA74 \uD574\uB2F9 \uC2DC\uC810\uC758 \uC0C1\uD0DC \uC2A4\uB0C5\uC0F7\uC744 \uBCFC \uC218 \uC788\uC2B5\uB2C8\uB2E4.',
-  openRelatedViz: '\uC5F0\uACB0\uB41C \uC2DC\uAC01\uD654 \uC5F4\uAE30',
+  pickBlueprint: '\uC67C\uCABD\uC5D0\uC11C \uC2A4\uD0AC\uC744 \uC120\uD0DD\uD558\uBA74 \uAC1C\uC120 \uD788\uC2A4\uD1A0\uB9AC\uB97C \uBCFC \uC218 \uC788\uC2B5\uB2C8\uB2E4.',
+  historyTitle: '\uAC1C\uC120 \uD788\uC2A4\uD1A0\uB9AC',
+  changeLabel: '\uBCC0\uACBD',
+  reasonLabel: '\uC774\uC720',
+  issuesLabel: '\uC8FC\uC694 \uC7C1\uC810',
+  articlesLabel: '\uCC38\uACE0 \uC544\uD2F0\uD074',
+  noEntries: '\uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
   selectViz: '\uB370\uC77C\uB9AC \uAE30\uB85D\uACFC \uC5F0\uACB0\uB41C \uC2DC\uAC01\uD654\uB97C \uC120\uD0DD\uD558\uC138\uC694.',
-  done: '\uC644\uB8CC',
-  inProgress: '\uC9C4\uD589 \uC911',
-  todo: '\uB300\uAE30',
-  totalSkills: '\uC804\uCCB4 \uC2A4\uD0AC',
-  completedSkills: '\uC644\uB8CC',
-  progressRate: '\uC9C4\uD589\uB960',
-  pendingSkills: '\uB300\uAE30',
-  pipelineLabel: '\uD30C\uC774\uD504\uB77C\uC778',
-  statusOverview: '\uC0C1\uD0DC \uC694\uC57D',
-  skillStatusTitle: '\uC2A4\uD0AC \uC9C4\uD589 \uC0C1\uD0DC',
 };
 
 const VIZ = {
@@ -77,26 +74,6 @@ const VIZ = {
   'git-guard': { label: TEXT.vizGitLabel, hint: TEXT.vizGitHint },
 };
 
-const STATUS_META = {
-  DONE: {
-    label: TEXT.done,
-    chip: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    card: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-    dot: 'bg-emerald-500',
-  },
-  IN_PROGRESS: {
-    label: TEXT.inProgress,
-    chip: 'bg-sky-100 text-sky-700 border-sky-200',
-    card: 'bg-sky-50 border-sky-200 text-sky-800',
-    dot: 'bg-sky-500',
-  },
-  TODO: {
-    label: TEXT.todo,
-    chip: 'bg-amber-100 text-amber-700 border-amber-200',
-    card: 'bg-amber-50 border-amber-200 text-amber-800',
-    dot: 'bg-amber-500',
-  },
-};
 
 const extractSection = (content, names) => {
   if (!content) return '';
@@ -130,13 +107,6 @@ const detectViz = (blueprint, content = '') => {
   return null;
 };
 
-const diffSummary = diff => {
-  if (!diff) return [];
-  const coverage = (diff.coverage_after?.current || 0) - (diff.coverage_before?.current || 0);
-  const changed = diff.changes.filter(item => item.type === 'changed').length;
-  const added = diff.changes.filter(item => item.type === 'added').length;
-  return [`${TEXT.coverage} ${coverage >= 0 ? '+' : ''}${coverage}%`, `${TEXT.changed} ${changed}`, `${TEXT.added} ${added}`];
-};
 
 const copyText = async text => {
   if (!text || !navigator?.clipboard?.writeText) return false;
@@ -144,81 +114,150 @@ const copyText = async text => {
   return true;
 };
 
-function CoverageBar({ value }) {
+function SkillHistoryEntry({ entry }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <span>{TEXT.coverage}</span>
-        <span className="font-semibold text-slate-700">{value}%</span>
+    <div className="rounded-2xl border border-slate-200 bg-white dark:bg-[#111218] p-5 space-y-3">
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-xs text-slate-400">{entry.date}</span>
+        <span className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
       </div>
-      <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
-        <div className="h-full rounded-full bg-gradient-to-r from-violet-500 via-sky-500 to-emerald-500" style={{ width: `${Math.max(0, Math.min(100, value || 0))}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function ProgressRing({ value }) {
-  const radius = 38;
-  const circumference = 2 * Math.PI * radius;
-  const normalized = Math.max(0, Math.min(100, value || 0));
-  const offset = circumference - (normalized / 100) * circumference;
-
-  return (
-    <div className="relative h-28 w-28">
-      <svg className="h-28 w-28 -rotate-90" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="10" />
-        <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke="url(#progressGradient)"
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-        />
-        <defs>
-          <linearGradient id="progressGradient" x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%" stopColor="#8b5cf6" />
-            <stop offset="50%" stopColor="#0ea5e9" />
-            <stop offset="100%" stopColor="#10b981" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold text-slate-900">{normalized}%</span>
-        <span className="text-[11px] text-slate-500">{TEXT.progressRate}</span>
-      </div>
-    </div>
-  );
-}
-
-function StatusCard({ label, count, tone }) {
-  return (
-    <div className={`rounded-2xl border p-4 ${tone}`}>
-      <p className="text-[11px] font-semibold tracking-[0.18em] uppercase opacity-80">{label}</p>
-      <p className="mt-2 text-2xl font-bold">{count}</p>
-    </div>
-  );
-}
-
-function SkillStatusItem({ skill }) {
-  const meta = STATUS_META[skill.status] || STATUS_META.TODO;
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-mono text-sm font-semibold text-slate-900 break-all">{skill.name}</p>
-          {skill.version && <p className="mt-1 text-xs text-slate-400">{skill.version}</p>}
+      <p className="text-sm font-semibold text-slate-900 dark:text-white">{entry.change}</p>
+      {entry.reason && (
+        <div className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="font-semibold text-slate-600 dark:text-slate-300">{TEXT.reasonLabel}: </span>
+          {entry.reason}
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${meta.chip}`}>{meta.label}</span>
+      )}
+      {entry.issues?.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{TEXT.issuesLabel}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {entry.issues.map((issue, i) => (
+              <span key={i} className="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs">{issue}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {entry.articles?.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{TEXT.articlesLabel}</p>
+          <div className="flex flex-wrap gap-2">
+            {entry.articles.map((article, i) => (
+              <a key={i} href={article.url} target="_blank" rel="noopener noreferrer"
+                className="px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs hover:bg-sky-100 transition-colors">
+                {article.title}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnalysisDetail({ report }) {
+  const dur = (() => {
+    try {
+      const s = new Date(report.started_at);
+      const e = new Date(report.ended_at);
+      const mins = Math.round((e - s) / 60000);
+      return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+    } catch { return '—'; }
+  })();
+
+  const secGuard = report.quality?.security_guard;
+  const secColor = secGuard === 'PASS' ? 'text-green-600 bg-green-50 border-green-200' : secGuard === 'FAIL' ? 'text-red-600 bg-red-50 border-red-200' : 'text-slate-500 bg-slate-50 border-slate-200';
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <p className="font-mono text-xs text-slate-400">{report.date}</p>
+            <p className="font-mono text-base font-semibold text-slate-900 dark:text-white mt-0.5">{report.branch}</p>
+          </div>
+          <span className="text-xs px-2.5 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-mono">{dur}</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: '커밋', value: report.git?.commit_count ?? 0 },
+            { label: '변경파일', value: report.git?.files_changed ?? 0 },
+            { label: '삽입/삭제', value: `+${report.git?.insertions ?? 0} / -${report.git?.deletions ?? 0}` },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-xl bg-slate-50 dark:bg-slate-800/40 px-3 py-2.5 text-center">
+              <p className="text-xs text-slate-400">{label}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white mt-0.5">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${secColor}`}>Security Guard: {secGuard ?? 'UNKNOWN'}</span>
+          {report.quality?.test_file_ratio != null && (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700">테스트 파일 비율: {(report.quality.test_file_ratio * 100).toFixed(0)}%</span>
+          )}
+        </div>
+
+        {report.quality?.tokens && (
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">토큰 사용량</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { label: 'Input', value: (report.quality.tokens.input || 0).toLocaleString() },
+                { label: 'Output', value: (report.quality.tokens.output || 0).toLocaleString() },
+                { label: 'Cache Read', value: (report.quality.tokens.cache_read || 0).toLocaleString() },
+                { label: 'Total', value: (report.quality.tokens.total || 0).toLocaleString() },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl bg-slate-50 dark:bg-slate-800/40 px-3 py-2 text-center">
+                  <p className="text-[10px] text-slate-400">{label}</p>
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 font-mono">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {report.quality?.skill_invocations && Object.keys(report.quality.skill_invocations).length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">스킬 발동</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(report.quality.skill_invocations).map(([skill, count]) => (
+                <span key={skill} className="px-2.5 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs font-mono">
+                  {skill} <span className="font-bold">×{count}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {report.pr && (
+          <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">PR #{report.pr.number}</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{report.pr.title}</p>
+            </div>
+            <a href={report.pr.url} target="_blank" rel="noopener noreferrer"
+              className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors">
+              {report.pr.state}
+            </a>
+          </div>
+        )}
       </div>
-      <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
-        <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
-        <span>{meta.label}</span>
-      </div>
+
+      {report.git?.commits?.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-5 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">커밋 목록</p>
+          <div className="space-y-1">
+            {report.git.commits.map((c, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <code className="shrink-0 text-[11px] font-mono text-slate-400 mt-0.5">{c.hash?.slice(0, 7)}</code>
+                <p className="text-xs text-slate-600 dark:text-slate-300">{c.message}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -226,51 +265,33 @@ function SkillStatusItem({ skill }) {
 export default function HarnessLabPage() {
   const [tab, setTab] = useState('logs');
   const [logs, setLogs] = useState([]);
-  const [blueprints, setBlueprints] = useState([]);
+  const [skillList, setSkillList] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedSkill, setSelectedSkill] = useState(null);
+  const [skillHistory, setSkillHistory] = useState(null);
+  const [skillEvaluations, setSkillEvaluations] = useState([]);
   const [logContent, setLogContent] = useState('');
-  const [blueprint, setBlueprint] = useState(null);
-  const [diff, setDiff] = useState(null);
-  const [diffFrom, setDiffFrom] = useState('');
-  const [diffTo, setDiffTo] = useState('');
   const [activeViz, setActiveViz] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
+  const [analysisList, setAnalysisList] = useState([]);
+  const [selectedAnalysis, setSelectedAnalysis] = useState(null);
+  const [analysisDetail, setAnalysisDetail] = useState(null);
+  const [references, setReferences] = useState([]);
+  const [activeTag, setActiveTag] = useState(null);
 
   useEffect(() => {
     fetchHarnessLogs().then(data => setLogs(data.logs || []));
-    fetchHarnessBlueprints().then(data => setBlueprints(data.blueprints || []));
+    fetchHarnessBlueprints().then(data => setSkillList(data.skills || []));
+    fetchHarnessAnalyses().then(data => setAnalysisList(data.reports || []));
+    fetchHarnessReferences().then(data => setReferences(data.references || []));
   }, []);
 
-  useEffect(() => {
-    if (blueprints.length >= 2 && !diffFrom && !diffTo) {
-      setDiffFrom(blueprints[1].date);
-      setDiffTo(blueprints[0].date);
-    }
-  }, [blueprints, diffFrom, diffTo]);
-
-  useEffect(() => {
-    if (tab !== 'blueprint' || !diffFrom || !diffTo) return;
-    fetchHarnessBlueprintDiff(diffFrom, diffTo).then(setDiff);
-  }, [tab, diffFrom, diffTo]);
-
   const todayLog = logs[0];
-  const todayBlueprint = blueprints[0];
   const selectedSummary = logs.find(log => log.date === selectedDate)?.summary || '';
   const prompt = buildPrompt(selectedDate, selectedSummary, logContent);
-  const blueprintViz = detectViz(blueprint, logContent);
+  const blueprintViz = detectViz({}, logContent);
   const todayPrompt = buildPrompt(todayLog?.date, todayLog?.summary, '');
-  const chips = useMemo(() => diffSummary(diff), [diff]);
-
-  const blueprintStats = useMemo(() => {
-    const skills = blueprint?.skills || [];
-    const total = skills.length;
-    const done = skills.filter(skill => skill.status === 'DONE').length;
-    const inProgress = skills.filter(skill => skill.status === 'IN_PROGRESS').length;
-    const todo = skills.filter(skill => skill.status === 'TODO').length;
-    const progress = total > 0 ? Math.round(((done + inProgress * 0.5) / total) * 100) : blueprint?.coverage?.current || 0;
-    return { total, done, inProgress, todo, progress };
-  }, [blueprint]);
 
   const openLog = async date => {
     setSelectedDate(date);
@@ -280,11 +301,23 @@ export default function HarnessLabPage() {
     setLoading(false);
   };
 
-  const openBlueprint = async date => {
-    setSelectedDate(date);
+  const openSkillHistory = async skill => {
+    setSelectedSkill(skill);
     setLoading(true);
-    const data = await fetchHarnessBlueprint(date);
-    setBlueprint(data);
+    const [historyData, evalData] = await Promise.all([
+      fetchHarnessBlueprintBySkill(skill),
+      fetchHarnessEvaluations(skill).catch(() => ({ evaluations: [] })),
+    ]);
+    setSkillHistory(historyData);
+    setSkillEvaluations(evalData.evaluations || []);
+    setLoading(false);
+  };
+
+  const openAnalysis = async id => {
+    setSelectedAnalysis(id);
+    setLoading(true);
+    const data = await fetchHarnessAnalysis(id);
+    setAnalysisDetail(data);
     setLoading(false);
   };
 
@@ -303,17 +336,36 @@ export default function HarnessLabPage() {
         <div className="flex flex-wrap gap-2 text-xs font-mono">
           {['tdd-guard-claude', 'security-guard', 'git-guard-claude', 'todo-architecture'].map(skill => <span key={skill} className="px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">{skill}</span>)}
         </div>
+
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">Golden Rule</span>
+            <span className="text-xs text-amber-500 dark:text-amber-500">— 일관적인 코드 통제와 토큰 사용량의 밸런스</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {GOLDEN_RULES.map(rule => (
+              <div key={rule.num} className="flex gap-3 rounded-xl bg-white/70 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 px-3 py-2.5">
+                <span className="shrink-0 text-xs font-bold text-amber-400 mt-0.5">{rule.num}</span>
+                <div>
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">{rule.title}</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">{rule.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-5 space-y-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-500">{TEXT.todayHandoff}</p>
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{todayLog?.summary || TEXT.noTodayWrapup}</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{todayBlueprint?.session_summary || TEXT.handoffHelp}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{TEXT.handoffHelp}</p>
             </div>
             <div className="flex gap-2 flex-wrap">
               <button type="button" className="px-3 py-2 rounded-lg bg-violet-600 text-white text-sm" disabled={!todayLog} onClick={() => handleCopy(todayPrompt, TEXT.copiedNextPrompt)}>{TEXT.copyNextPrompt}</button>
               <button type="button" className="px-3 py-2 rounded-lg border text-sm" disabled={!todayLog} onClick={() => openLog(todayLog.date)}>{TEXT.openTodayLog}</button>
-              <button type="button" className="px-3 py-2 rounded-lg border text-sm" disabled={!todayBlueprint} onClick={() => setTab('blueprint')}>{TEXT.compareYesterday}</button>
+              <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => setTab('blueprint')}>{TEXT.blueprintTab}</button>
             </div>
           </div>
           {copyStatus && <p className="text-xs text-violet-600 dark:text-violet-400">{copyStatus}</p>}
@@ -321,7 +373,7 @@ export default function HarnessLabPage() {
       </div>
 
       <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit">
-        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab]].map(([key, label]) => (
+        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab]].map(([key, label]) => (
           <button key={key} type="button" onClick={() => { setTab(key); setCopyStatus(''); if (key !== 'viz') setActiveViz(null); }} className={`px-4 py-2 text-sm rounded-lg ${tab === key ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
         ))}
       </div>
@@ -342,125 +394,173 @@ export default function HarnessLabPage() {
                 <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('blueprint'); if (selectedDate) openBlueprint(selectedDate); }}>{TEXT.openBlueprint}</button>
                 {blueprintViz && <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('viz'); setActiveViz(blueprintViz); }}>{TEXT.openViz}</button>}
               </div>
-              <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-4 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{TEXT.wrapupGuideTitle}</p>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <div className="rounded-xl bg-white/80 dark:bg-slate-950/40 px-3 py-3 text-sm text-slate-700 dark:text-slate-300">
-                    <p className="font-semibold text-slate-900 dark:text-white">{TEXT.wrapupSection1}</p>
-                    <p className="mt-1">{TEXT.checklist1}</p>
-                  </div>
-                  <div className="rounded-xl bg-white/80 dark:bg-slate-950/40 px-3 py-3 text-sm text-slate-700 dark:text-slate-300">
-                    <p className="font-semibold text-slate-900 dark:text-white">{TEXT.wrapupSection2}</p>
-                    <p className="mt-1">{TEXT.checklist2}</p>
-                  </div>
-                  <div className="rounded-xl bg-white/80 dark:bg-slate-950/40 px-3 py-3 text-sm text-slate-700 dark:text-slate-300">
-                    <p className="font-semibold text-slate-900 dark:text-white">{TEXT.wrapupSection3}</p>
-                    <p className="mt-1">{TEXT.checklist3}</p>
-                  </div>
-                  <div className="rounded-xl bg-white/80 dark:bg-slate-950/40 px-3 py-3 text-sm text-slate-700 dark:text-slate-300">
-                    <p className="font-semibold text-slate-900 dark:text-white">{TEXT.wrapupSection4}</p>
-                    <p className="mt-1">{TEXT.checklist4}</p>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50/70 px-3 py-3 text-sm text-violet-900 dark:bg-violet-500/10 dark:text-violet-100">
-                  <p className="font-semibold">{TEXT.wrapupSection5}</p>
-                  <p className="mt-1">{TEXT.copyNextPrompt}</p>
-                </div>
-              </div>
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-6"><MarkdownViewer content={logContent} /></div>
           </>}
         </div>
       </div>}
 
-      {tab === 'blueprint' && <div className="space-y-6">
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-5 space-y-4">
-          <div className="flex gap-3 items-end flex-wrap">
-            <div><label className="text-xs text-slate-500">{TEXT.from}</label><select value={diffFrom} onChange={e => setDiffFrom(e.target.value)} className="block mt-1 px-3 py-2 rounded-lg border"><option value="">{TEXT.pickDateOption}</option>{blueprints.map(item => <option key={item.date} value={item.date}>{item.date}</option>)}</select></div>
-            <div><label className="text-xs text-slate-500">{TEXT.to}</label><select value={diffTo} onChange={e => setDiffTo(e.target.value)} className="block mt-1 px-3 py-2 rounded-lg border"><option value="">{TEXT.pickDateOption}</option>{blueprints.map(item => <option key={item.date} value={item.date}>{item.date}</option>)}</select></div>
-            <button type="button" className="px-3 py-2 rounded-lg bg-violet-600 text-white text-sm disabled:opacity-40" disabled={!diffFrom || !diffTo} onClick={() => fetchHarnessBlueprintDiff(diffFrom, diffTo).then(setDiff)}>{TEXT.refreshDiff}</button>
-          </div>
-          <div className="flex gap-2 flex-wrap">{chips.map(chip => <span key={chip} className="px-2.5 py-1 rounded-full bg-slate-100 text-xs text-slate-600">{chip}</span>)}</div>
+      {tab === 'blueprint' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-2">
+          <h2 className="text-xs uppercase tracking-wider text-slate-400">{TEXT.blueprintList}</h2>
+          {skillList.length === 0
+            ? <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400"><p>{TEXT.noBlueprints}</p><p className="text-xs mt-1 font-mono">{TEXT.generateWithHarness}</p></div>
+            : skillList.map(item => (
+              <button key={item.skill} type="button" onClick={() => openSkillHistory(item.skill)}
+                className={`w-full text-left px-4 py-3 rounded-xl border bg-white dark:bg-[#111218] hover:border-violet-200 transition-colors ${selectedSkill === item.skill ? 'border-violet-400' : ''}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">{item.skill}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{item.entry_count}회</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 truncate">{item.latest?.change}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{item.latest?.date}</p>
+              </button>
+            ))
+          }
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <h2 className="text-xs uppercase tracking-wider text-slate-400">{TEXT.blueprintList}</h2>
-            {blueprints.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400"><p>{TEXT.noBlueprints}</p><p className="text-xs mt-1 font-mono">{TEXT.generateWithHarness}</p></div> : blueprints.map(item => <button key={item.date} type="button" onClick={() => openBlueprint(item.date)} className="w-full text-left px-4 py-3 rounded-xl border bg-white dark:bg-[#111218] hover:border-violet-200 transition-colors"><span className="font-mono text-sm">{item.date}</span><p className="text-xs text-slate-400 mt-1">{TEXT.coverage} {item.coverage?.current}%</p><p className="text-xs text-slate-500 mt-1">{item.session_summary}</p></button>)}
-          </div>
-
-          <div className="lg:col-span-2">
-            {!blueprint ? (
-              <div className="h-64 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.pickBlueprint}</div>
-            ) : (
-              <div className="rounded-[28px] border border-slate-200 bg-white p-6 md:p-7 space-y-6 shadow-sm">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div>
-                    <h3 className="font-mono text-lg font-bold text-slate-900">{blueprint.date}</h3>
-                    <p className="text-sm text-slate-500 mt-1">{blueprint.session_summary}</p>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {blueprintViz && <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('viz'); setActiveViz(blueprintViz); }}>{TEXT.openRelatedViz}</button>}
-                  </div>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[160px_1fr] items-center rounded-3xl bg-slate-50 border border-slate-200 p-5">
-                  <div className="flex justify-center">
-                    <ProgressRing value={blueprintStats.progress} />
-                  </div>
-                  <div className="space-y-4">
-                    <CoverageBar value={blueprint.coverage?.current || 0} />
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <StatusCard label={TEXT.totalSkills} count={blueprintStats.total} tone="bg-slate-100 border-slate-200 text-slate-800" />
-                      <StatusCard label={TEXT.completedSkills} count={blueprintStats.done} tone={STATUS_META.DONE.card} />
-                      <StatusCard label={TEXT.progressRate} count={`${blueprintStats.inProgress}`} tone={STATUS_META.IN_PROGRESS.card} />
-                      <StatusCard label={TEXT.pendingSkills} count={blueprintStats.todo} tone={STATUS_META.TODO.card} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 space-y-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{TEXT.pipelineLabel}</p>
-                      <p className="mt-2 text-sm font-mono text-slate-700 break-words">{blueprint.pipeline}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{TEXT.statusOverview}</p>
-                      <div className="mt-3 space-y-3">
-                        {['DONE', 'IN_PROGRESS', 'TODO'].map(status => {
-                          const count = status === 'DONE' ? blueprintStats.done : status === 'IN_PROGRESS' ? blueprintStats.inProgress : blueprintStats.todo;
-                          const total = blueprintStats.total || 1;
-                          const width = Math.round((count / total) * 100);
-                          const meta = STATUS_META[status];
-                          return (
-                            <div key={status} className="space-y-1.5">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="font-semibold text-slate-700">{meta.label}</span>
-                                <span className="text-slate-500">{count}</span>
-                              </div>
-                              <div className="h-2.5 rounded-full bg-white overflow-hidden border border-slate-200">
-                                <div className={`h-full ${meta.dot}`} style={{ width: `${width}%` }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{TEXT.skillStatusTitle}</p>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {blueprint.skills?.map(skill => <SkillStatusItem key={skill.name} skill={skill} />)}
-                    </div>
-                  </div>
-                </div>
+        <div className="lg:col-span-2">
+          {loading && <div className="h-40 flex items-center justify-center"><div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>}
+          {!loading && !skillHistory && <div className="h-64 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.pickBlueprint}</div>}
+          {!loading && !!skillHistory && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <h3 className="font-mono text-lg font-bold text-slate-900 dark:text-white">{skillHistory.skill}</h3>
               </div>
-            )}
-          </div>
+
+              {/* 평가 이력 */}
+              {skillEvaluations.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">아티클 평가 이력</p>
+                  {skillEvaluations.map((ev, i) => (
+                    <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-4 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <a href={ev.article_url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-violet-600 transition-colors">
+                          {ev.article_title}
+                        </a>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[10px] text-slate-400">{ev.date}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${
+                            ev.verdict === 'pass' ? 'bg-green-50 border-green-200 text-green-700' :
+                            ev.verdict === 'needs-work' ? 'bg-red-50 border-red-200 text-red-600' :
+                            'bg-amber-50 border-amber-200 text-amber-700'
+                          }`}>{ev.verdict}</span>
+                        </div>
+                      </div>
+                      {ev.gaps?.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">갭</p>
+                          <ul className="space-y-0.5">
+                            {ev.gaps.map((g, j) => <li key={j} className="text-xs text-slate-600 dark:text-slate-400 before:content-['·'] before:mr-1.5">{g}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {ev.suggestions?.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">제안</p>
+                          <ul className="space-y-0.5">
+                            {ev.suggestions.map((s, j) => <li key={j} className="text-xs text-violet-600 dark:text-violet-400 before:content-['→'] before:mr-1.5">{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 개선 히스토리 */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{TEXT.historyTitle}</p>
+                {skillHistory.entries?.length === 0
+                  ? <p className="text-sm text-slate-400">{TEXT.noEntries}</p>
+                  : skillHistory.entries.map((entry, i) => <SkillHistoryEntry key={i} entry={entry} />)
+                }
+              </div>
+            </div>
+          )}
         </div>
       </div>}
+
+      {tab === 'analysis' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-2">
+          <h2 className="text-xs uppercase tracking-wider text-slate-400">{TEXT.reportList}</h2>
+          {analysisList.length === 0
+            ? <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400"><p>{TEXT.noAnalyses}</p><p className="text-xs mt-1 font-mono">{TEXT.runHarnessAnalysis}</p></div>
+            : analysisList.map(r => (
+              <button key={r.id} type="button" onClick={() => openAnalysis(r.id)}
+                className={`w-full text-left px-4 py-3 rounded-xl border bg-white dark:bg-[#111218] hover:border-violet-200 transition-colors ${selectedAnalysis === r.id ? 'border-violet-400' : ''}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">{r.date}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{r.git?.commit_count ?? 0}커밋</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 font-mono truncate">{r.branch}</p>
+              </button>
+            ))
+          }
+        </div>
+
+        <div className="lg:col-span-2">
+          {loading && <div className="h-40 flex items-center justify-center"><div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>}
+          {!loading && !analysisDetail && <div className="h-64 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.pickAnalysis}</div>}
+          {!loading && !!analysisDetail && <AnalysisDetail report={analysisDetail} />}
+        </div>
+      </div>}
+
+      {tab === 'references' && (() => {
+        const allTags = [...new Set(references.flatMap(r => r.tags || []))].sort();
+        const filtered = activeTag ? references.filter(r => (r.tags || []).includes(activeTag)) : references;
+        const handleDelete = async (id) => {
+          await deleteHarnessReference(id);
+          setReferences(prev => prev.filter(r => r.id !== id));
+        };
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2 items-center">
+              <button type="button" onClick={() => setActiveTag(null)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!activeTag ? 'bg-violet-600 text-white border-violet-600' : 'border-slate-200 text-slate-500 hover:border-violet-300'}`}>
+                {TEXT.allTags}
+              </button>
+              {allTags.map(tag => (
+                <button key={tag} type="button" onClick={() => setActiveTag(tag === activeTag ? null : tag)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${activeTag === tag ? 'bg-violet-600 text-white border-violet-600' : 'border-slate-200 text-slate-500 hover:border-violet-300'}`}>
+                  {tag}
+                </button>
+              ))}
+            </div>
+            {filtered.length === 0
+              ? <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-400">
+                  <p>{TEXT.noReferences}</p>
+                  <p className="text-xs mt-1 font-mono">{TEXT.runHarnessReference}</p>
+                </div>
+              : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {filtered.map(ref => (
+                    <div key={ref.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-4 space-y-3 flex flex-col">
+                      <div className="flex items-start justify-between gap-2">
+                        <a href={ref.url} target="_blank" rel="noopener noreferrer"
+                          className="text-sm font-semibold text-slate-900 dark:text-white hover:text-violet-600 dark:hover:text-violet-400 transition-colors leading-snug">
+                          {ref.title}
+                        </a>
+                        <button type="button" onClick={() => handleDelete(ref.id)}
+                          className="shrink-0 text-slate-300 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                      </div>
+                      {ref.summary && <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed flex-1">{ref.summary}</p>}
+                      <div className="flex flex-wrap gap-1.5">
+                        {(ref.tags || []).map(tag => (
+                          <button key={tag} type="button" onClick={() => setActiveTag(tag)}
+                            className="px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[11px] hover:bg-violet-100 transition-colors">
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-300 dark:text-slate-600 font-mono">{new Date(ref.created_at).toLocaleDateString('ko-KR')}</p>
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
+        );
+      })()}
 
       {tab === 'viz' && <div className="space-y-4">
         <div className="grid gap-3 md:grid-cols-2">{Object.entries(VIZ).map(([key, item]) => <button key={key} type="button" onClick={() => setActiveViz(key)} className="text-left px-4 py-4 rounded-2xl border bg-white dark:bg-[#111218]"><p className="text-sm font-semibold">{item.label}</p><p className="mt-1 text-xs text-slate-500">{item.hint}</p></button>)}</div>
