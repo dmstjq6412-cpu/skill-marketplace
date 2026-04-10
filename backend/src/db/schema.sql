@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS harness_evaluations (
     gaps            JSONB NOT NULL DEFAULT '[]',
     suggestions     JSONB NOT NULL DEFAULT '[]',
     verdict         TEXT NOT NULL DEFAULT 'partial',
+    resolved_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
