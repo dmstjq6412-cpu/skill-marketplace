@@ -24,3 +24,19 @@ export async function initDb() {
   await pool.query(schema);
   console.log('Database initialized');
 }
+
+export async function initDbWithRetry({ retries = 1, delayMs = 3000 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await initDb();
+      return;
+    } catch (err) {
+      if (attempt < retries) {
+        console.warn(`[DB] Connection failed (${err.message}), retrying in ${delayMs / 1000}s...`);
+        await new Promise(r => setTimeout(r, delayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+}

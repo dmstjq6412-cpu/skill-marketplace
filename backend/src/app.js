@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { initDb } from './db/database.js';
+import { initDbWithRetry } from './db/database.js';
 import downloadRouter from './routes/download.js';
 import skillsRouter from './routes/skills.js';
 import harnessRouter from './routes/harness.js';
@@ -21,7 +21,7 @@ app.use('/api/harness', harnessRouter);
 
 app.listen(PORT, async () => {
   try {
-    await initDb();
+    await initDbWithRetry();
   } catch (err) {
     console.warn(`[DB] Connection failed — skills routes unavailable. (${err.message})`);
     console.warn('[DB] Harness Lab routes are still operational.');
