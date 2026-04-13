@@ -18,6 +18,8 @@ const TEXT = {
   vizTodoHint: '\uC544\uD0A4\uD14D\uCC98, \uC6CC\uD06C\uD50C\uB85C\uC6B0 \uAD6C\uC870, TODO \uC2DC\uC2A4\uD15C \uC124\uACC4\uB97C \uB2E4\uB8EC \uB0A0\uC5D0 \uD655\uC778\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.',
   vizGitLabel: 'Git Guard \uD750\uB984\uB3C4',
   vizGitHint: '\uBE0C\uB79C\uCE58 \uC804\uB7B5, \uB9AC\uBDF0 \uD750\uB984, git guard \uC790\uB3D9\uD654 \uC778\uACC4\uB97C \uB2E4\uB8EC \uB0A0\uC5D0 \uD655\uC778\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.',
+  vizMetaLabel: '\uBA54\uD0C0 \uD558\uB124\uC2A4 \uC2A4\uD0AC \uC778\uD130\uB799\uC158',
+  vizMetaHint: '\uCF54\uC5B4 \uD558\uB124\uC2A4\uB97C \uAD00\uCC30\uD558\uACE0 \uAC1C\uC120 \uD310\uB2E8 \uADFC\uAC70\uB97C \uC313\uB294 inspecting tool \uB808\uC774\uC5B4 \uC138\uC158 \uC0AC\uC774\uD074\uACFC \uD53C\uB4DC\uBC31 \uB8E8\uD504.',
   latestSession: '\uCD5C\uC2E0',
   promptPrefix: '\uD558\uB124\uC2A4 \uC138\uC158\uC744 \uC774\uC5B4\uC11C \uC9C4\uD589\uD558\uC138\uC694.',
   summaryPrefix: '\uD604\uC7AC \uC694\uC57D:',
@@ -72,6 +74,7 @@ const TEXT = {
 const VIZ = {
   'todo-architecture': { label: TEXT.vizTodoLabel, hint: TEXT.vizTodoHint },
   'git-guard': { label: TEXT.vizGitLabel, hint: TEXT.vizGitHint },
+  'meta-harness': { label: TEXT.vizMetaLabel, hint: TEXT.vizMetaHint },
 };
 
 
