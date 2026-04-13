@@ -9,27 +9,28 @@ vi.mock('../components/MarkdownViewer', () => ({
 const mockFetchHarnessLogs = vi.fn();
 const mockFetchHarnessLog = vi.fn();
 const mockFetchHarnessBlueprints = vi.fn();
-const mockFetchHarnessBlueprint = vi.fn();
-const mockFetchHarnessBlueprintDiff = vi.fn();
+FetchHarnessBlueprintBySkill = vi.fn();
+
+const mockFetchHarnessBlueprintBySkill = vi.fn();
 const mockFetchHarnessAnalyses = vi.fn();
 const mockFetchHarnessAnalysis = vi.fn();
 const mockFetchHarnessReferences = vi.fn();
-const mockFetchHarnessEvaluations = vi.fn();
 const mockDeleteHarnessReference = vi.fn();
-const mockFetchHarnessBlueprintBySkill = vi.fn();
+const mockFetchHarnessEvaluations = vi.fn();
+
 
 vi.mock('../api/client', () => ({
   fetchHarnessLogs: (...args) => mockFetchHarnessLogs(...args),
   fetchHarnessLog: (...args) => mockFetchHarnessLog(...args),
   fetchHarnessBlueprints: (...args) => mockFetchHarnessBlueprints(...args),
-  fetchHarnessBlueprint: (...args) => mockFetchHarnessBlueprint(...args),
-  fetchHarnessBlueprintDiff: (...args) => mockFetchHarnessBlueprintDiff(...args),
+
+  fetchHarnessBlueprintBySkill: (...args) => mockFetchHarnessBlueprintBySkill(...args),
   fetchHarnessAnalyses: (...args) => mockFetchHarnessAnalyses(...args),
   fetchHarnessAnalysis: (...args) => mockFetchHarnessAnalysis(...args),
   fetchHarnessReferences: (...args) => mockFetchHarnessReferences(...args),
-  fetchHarnessEvaluations: (...args) => mockFetchHarnessEvaluations(...args),
   deleteHarnessReference: (...args) => mockDeleteHarnessReference(...args),
-  fetchHarnessBlueprintBySkill: (...args) => mockFetchHarnessBlueprintBySkill(...args),
+  fetchHarnessEvaluations: (...args) => mockFetchHarnessEvaluations(...args),
+
 }));
 
 const { default: HarnessLabPage } = await import('../pages/HarnessLabPage');
@@ -43,10 +44,6 @@ const KR = {
   noWrapups: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uB370\uC77C\uB9AC wrap-up\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessLog: '`/harness-log`\uB97C \uC2E4\uD589\uD574 \uCCAB \uAE30\uB85D\uC744 \uC800\uC7A5\uD558\uC138\uC694.',
   blueprintTab: '\uBE14\uB8E8\uD504\uB9B0\uD2B8',
-  coverageDiff: '\uCEE4\uBC84\uB9AC\uC9C0 +15%',
-  changedOne: '\uBCC0\uACBD 1',
-  openRelatedViz: '\uC5F0\uACB0\uB41C \uC2DC\uAC01\uD654 \uC5F4\uAE30',
-  vizHint: '\uBE0C\uB79C\uCE58 \uC804\uB7B5, \uB9AC\uBDF0 \uD750\uB984, git guard \uC790\uB3D9\uD654 \uC778\uACC4\uB97C \uB2E4\uB8EC \uB0A0\uC5D0 \uD655\uC778\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.',
 };
 
 const MOCK_LOGS = [
@@ -69,19 +66,45 @@ Implemented harness-lab handoff flow
 Continue the harness session and wire the prompt copy action.`;
 
 const MOCK_BLUEPRINTS = [
-  { date: '2026-04-08', coverage: { current: 45 }, session_summary: 'Implemented harness-lab handoff flow' },
-  { date: '2026-04-07', coverage: { current: 30 }, session_summary: 'Documented blueprint baseline' },
+  { skill: 'tdd-guard-claude', entry_count: 5, latest: { change: 'Added coverage threshold enforcement', date: '2026-04-08' } },
+  { skill: 'git-guard-claude', entry_count: 3, latest: { change: 'Improved branch naming validation', date: '2026-04-07' } },
 ];
 
-const MOCK_BLUEPRINT = {
-  date: '2026-04-08',
-  skills: [
-    { name: 'tdd-guard-claude', status: 'DONE', version: 'v2.0.0' },
-    { name: 'git-guard-claude', status: 'IN_PROGRESS', version: 'v1.0.0' },
+const MOCK_BLUEPRINT_HISTORY = {
+  skill: 'tdd-guard-claude',
+  entries: [
+    { date: '2026-04-08', change: 'Added coverage threshold enforcement', reason: 'Coverage below 80%', issues: [], articles: [] },
+    { date: '2026-04-01', change: 'Initial TDD policy', reason: 'Project kickoff', issues: [], articles: [] },
   ],
-  coverage: { current: 45, description: 'Current' },
-  pipeline: 'tdd -> code-review -> git-guard',
-  session_summary: 'Implemented harness-lab handoff flow',
+};
+
+const MOCK_ANALYSIS_LIST = [
+  { id: 'report-2026-04-08', date: '2026-04-08', branch: 'feature/3-efficiency', commit_count: 4 },
+];
+
+const MOCK_ANALYSIS_REPORT = {
+  id: 'report-2026-04-08',
+  date: '2026-04-08',
+  branch: 'feature/3-efficiency',
+  started_at: '2026-04-08T09:00:00Z',
+  ended_at: '2026-04-08T17:00:00Z',
+  git: { start_commit: 'abc1234', end_commit: 'def5678', commit_count: 4, commits: [], files_changed: 6, insertions: 120, deletions: 40 },
+  pr: null,
+  quality: {
+    security_guard: 'PASS',
+    test_file_ratio: 0.33,
+    tokens: { input: 1000, output: 300, cache_read: 20000, cache_creation: 500, total: 21800 },
+    skill_invocations: { 'tdd-guard-claude': 3, 'code-reviewer': 2 },
+    reject_rates: {
+      'code-reviewer': { runs: 2, reject: 1, rate: 0.5 },
+    },
+    efficiency: {
+      guard_invocations_per_loc: 0.03,
+      total_invocations_per_loc: 0.04,
+      baseline_avg: 0.02,
+      overhead_flag: true,
+    },
+  },
 };
 
 const MOCK_ANALYSIS_LIST = [
@@ -110,23 +133,16 @@ const MOCK_ANALYSIS_REPORT = {
 
 function seedMocks() {
   mockFetchHarnessLogs.mockResolvedValue({ logs: MOCK_LOGS });
-  mockFetchHarnessBlueprints.mockResolvedValue({ blueprints: MOCK_BLUEPRINTS });
+  mockFetchHarnessBlueprints.mockResolvedValue({ skills: MOCK_BLUEPRINTS });
   mockFetchHarnessLog.mockResolvedValue({ date: '2026-04-08', content: MOCK_LOG_CONTENT });
-  mockFetchHarnessBlueprint.mockResolvedValue(MOCK_BLUEPRINT);
+
+  mockFetchHarnessBlueprintBySkill.mockResolvedValue(MOCK_BLUEPRINT_HISTORY);
   mockFetchHarnessAnalyses.mockResolvedValue({ reports: MOCK_ANALYSIS_LIST });
   mockFetchHarnessAnalysis.mockResolvedValue(MOCK_ANALYSIS_REPORT);
   mockFetchHarnessReferences.mockResolvedValue({ references: [] });
+  mockDeleteHarnessReference.mockResolvedValue({});
   mockFetchHarnessEvaluations.mockResolvedValue({ evaluations: [] });
-  mockFetchHarnessBlueprintBySkill.mockResolvedValue({ entries: [] });
-  mockFetchHarnessBlueprintDiff.mockResolvedValue({
-    from: '2026-04-07',
-    to: '2026-04-08',
-    coverage_before: { current: 30 },
-    coverage_after: { current: 45 },
-    changes: [
-      { name: 'git-guard-claude', type: 'changed', before: { status: 'TODO', version: 'v0.9.0' }, after: { status: 'IN_PROGRESS', version: 'v1.0.0' } },
-    ],
-  });
+
 }
 
 function renderPage() {
@@ -177,23 +193,46 @@ describe('HarnessLabPage', () => {
     expect(screen.getByText(KR.runHarnessLog)).toBeInTheDocument();
   });
 
-  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 diff\uB97C \uAE30\uBCF8 \uB0A0\uC9DC\uB85C \uBD88\uB7EC\uC624\uACE0 \uC694\uC57D \uCE69\uC744 \uBCF4\uC5EC\uC900\uB2E4', async () => {
+  it('\uC2DC\uBC94\uC6B4\uD589 \uD0ED\uC5D0\uC11C \uB9AC\uD3EC\uD2B8 \uD074\uB9AD \uC2DC efficiency \uC139\uC158\uACFC OVERHEAD \uBC30\uC9C0\uAC00 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
-    fireEvent.click(screen.getAllByText(KR.blueprintTab)[1]);
-    await waitFor(() => expect(mockFetchHarnessBlueprintDiff).toHaveBeenCalledWith('2026-04-07', '2026-04-08'));
-    expect(await screen.findByText(KR.coverageDiff)).toBeInTheDocument();
-    expect(screen.getByText(KR.changedOne)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('시범운행'));
+    const reportBtn = await screen.findByRole('button', { name: /2026-04-08/ });
+    fireEvent.click(reportBtn);
+    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith('report-2026-04-08'));
+    expect(await screen.findByText('OVERHEAD')).toBeInTheDocument();
+    expect(screen.getByText('0.03')).toBeInTheDocument();
+    expect(screen.getByText('baseline avg: 0.02')).toBeInTheDocument();
   });
 
-  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC0C1\uC138\uC5D0\uC11C \uC5F0\uACB0\uB41C \uC2DC\uAC01\uD654\uB97C \uC5F4 \uC218 \uC788\uB2E4', async () => {
+  it('\uC2DC\uBC94\uC6B4\uD589 \uB9AC\uD3EC\uD2B8\uC5D0\uC11C reject_rates\uAC00 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
-    fireEvent.click(screen.getAllByText(KR.blueprintTab)[1]);
-    const blueprintButtons = await screen.findAllByRole('button', { name: /2026-04-08/ });
-    fireEvent.click(blueprintButtons[0]);
-    await screen.findByRole('button', { name: KR.openRelatedViz });
-    fireEvent.click(screen.getByRole('button', { name: KR.openRelatedViz }));
-    expect(await screen.findByTitle('git-guard')).toBeInTheDocument();
-    expect(screen.getAllByText(KR.vizHint).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText('시범운행'));
+    const reportBtn = await screen.findByRole('button', { name: /2026-04-08/ });
+    fireEvent.click(reportBtn);
+    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith('report-2026-04-08'));
+    expect(await screen.findByText(/1\/2 REJECT/)).toBeInTheDocument();
+    expect(screen.getByText(/50%/)).toBeInTheDocument();
+  });
+
+  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uD0ED\uC5D0\uC11C \uC2A4\uD82C \uBAA9\uB85D\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
+    renderPage();
+
+    const tabs = screen.getAllByText(KR.blueprintTab);
+    fireEvent.click(tabs[tabs.length - 1]);
+    expect(await screen.findByText('tdd-guard-claude')).toBeInTheDocument();
+    expect(screen.getAllByText('git-guard-claude').length).toBeGreaterThan(0);
+
+  });
+
+  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC2A4\uD82C \uD074\uB9AD \uC2DC fetchHarnessBlueprintBySkill\uC774 \uD638\uCD9C\uB41C\uB2E4', async () => {
+    renderPage();
+
+    const tabs = screen.getAllByText(KR.blueprintTab);
+    fireEvent.click(tabs[tabs.length - 1]);
+    const skillBtn = await screen.findByRole('button', { name: /tdd-guard-claude/ });
+    fireEvent.click(skillBtn);
+    await waitFor(() => expect(mockFetchHarnessBlueprintBySkill).toHaveBeenCalledWith('tdd-guard-claude'));
+
   });
 
   it('분석 탭에서 리포트 선택 시 reject_rates를 렌더링한다', async () => {

@@ -237,25 +237,51 @@ function AnalysisDetail({ report }) {
         {report.quality?.reject_rates && Object.keys(report.quality.reject_rates).length > 0 && (
           <div className="space-y-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">REJECT 비율</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {Object.entries(report.quality.reject_rates).map(([skill, stat]) => {
-                const rate = stat.rate ?? 0;
-                const isRejected = stat.reject > 0;
+
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(report.quality.reject_rates).map(([skill, data]) => {
+                const hasReject = data.reject > 0;
                 return (
-                  <div key={skill} className={`rounded-xl border px-3 py-2.5 flex items-center justify-between gap-2 ${isRejected ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
-                    <span className="text-xs font-mono text-slate-700">{skill}</span>
-                    <div className="text-right shrink-0">
-                      <p className={`text-sm font-bold font-mono ${isRejected ? 'text-red-600' : 'text-green-600'}`}>
-                        {(rate * 100).toFixed(0)}%
-                      </p>
-                      <p className="text-[10px] text-slate-400">{stat.reject}/{stat.runs} REJECT</p>
-                    </div>
-                  </div>
+                  <span key={skill} className={`px-2.5 py-1 rounded-full border text-xs font-mono ${hasReject ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
+                    {skill} <span className="font-bold">{Math.round((data.rate ?? 0) * 100)}%</span>
+                    <span className="opacity-60 ml-1">({data.reject}/{data.runs} REJECT)</span>
+                  </span>
+
                 );
               })}
             </div>
           </div>
         )}
+
+
+        {report.quality?.efficiency && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">효율 지표</p>
+              {report.quality.efficiency.overhead_flag && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-700 font-bold">OVERHEAD</span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 px-3 py-2 text-center">
+                <p className="text-[10px] text-slate-400">가드/LOC</p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 font-mono">
+                  {report.quality.efficiency.guard_invocations_per_loc ?? '—'}
+                </p>
+              </div>
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 px-3 py-2 text-center">
+                <p className="text-[10px] text-slate-400">전체/LOC</p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 font-mono">
+                  {report.quality.efficiency.total_invocations_per_loc ?? '—'}
+                </p>
+              </div>
+            </div>
+            {report.quality.efficiency.baseline_avg != null && (
+              <p className="text-[10px] text-slate-400 font-mono">baseline avg: {report.quality.efficiency.baseline_avg}</p>
+            )}
+          </div>
+        )}
+
 
         {report.pr && (
           <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
