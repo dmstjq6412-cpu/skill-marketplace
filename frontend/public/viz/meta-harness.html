@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Harness — 스킬 역할 & 인터랙션</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+  .page { width: 1100px; margin: 0 auto; padding: 40px 20px; }
+
+  h1 { text-align: center; font-size: 26px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #666; font-size: 13px; margin-bottom: 36px; }
+
+  .section { background: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 24px;
+             box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 22px; padding-bottom: 10px;
+                   border-bottom: 2px solid; display: flex; align-items: center; gap: 8px; }
+  .section-title .num { width: 26px; height: 26px; border-radius: 50%; display: flex;
+                        align-items: center; justify-content: center; font-size: 12px;
+                        font-weight: 800; color: #fff; flex-shrink: 0; }
+
+  /* 노드 */
+  .node { border-radius: 10px; padding: 10px 16px; font-size: 12px; font-weight: 600;
+          text-align: center; min-width: 120px; max-width: 160px; line-height: 1.4; }
+  .node.core  { background: #1e293b; color: #fff; border: 2px solid #334155; }
+  .node.meta  { background: #ede9fe; color: #5b21b6; border: 2px solid #c4b5fd; }
+  .node.data  { background: #ecfdf5; color: #065f46; border: 2px solid #6ee7b7; }
+  .node.start { background: #1a1a2e; color: #fff; border-radius: 24px; min-width: 100px; }
+  .node.end   { background: #1a1a2e; color: #fff; border-radius: 24px; min-width: 100px; }
+  .node.human { background: #fef9c3; color: #854d0e; border: 2px solid #fde047; }
+  .node.action{ background: #e8f0fe; color: #1a56db; border: 2px solid #93c5fd; }
+  .node.signal{ background: #fff7ed; color: #c2410c; border: 2px dashed #fdba74; font-size: 11px; }
+
+  /* 화살표 */
+  .arrow { display: flex; align-items: center; justify-content: center;
+           color: #94a3b8; font-size: 18px; padding: 2px 6px; }
+  .arrow-label { font-size: 10px; color: #64748b; font-weight: 600; white-space: nowrap;
+                 background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;
+                 padding: 1px 5px; margin: 2px 0; }
+  .va { display: flex; flex-direction: column; align-items: center; }
+  .arrow-line { width: 2px; background: #cbd5e1; min-height: 16px; }
+  .arrow-tip  { color: #94a3b8; font-size: 14px; line-height: 1; }
+
+  /* 흐름 */
+  .flow { display: flex; align-items: center; gap: 0; flex-wrap: nowrap; overflow-x: auto; }
+  .flow-col { display: flex; flex-direction: column; align-items: center; }
+
+  /* 레이어 구조 */
+  .layers { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .layer-box { border-radius: 12px; padding: 20px 24px; }
+  .layer-core { background: #f1f5f9; border: 2px solid #334155; }
+  .layer-meta { background: #f5f3ff; border: 2px solid #c4b5fd; }
+  .layer-title { font-size: 13px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* 스킬 카드 */
+  .skill-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .skill-card { border-radius: 10px; padding: 14px 16px; }
+  .skill-card.meta-card { background: #f5f3ff; border: 1.5px solid #c4b5fd; }
+  .skill-name { font-size: 12px; font-weight: 700; margin-bottom: 6px; color: #5b21b6; }
+  .skill-when { font-size: 10px; color: #7c3aed; font-weight: 600; margin-bottom: 4px;
+                background: #ede9fe; display: inline-block; padding: 1px 6px; border-radius: 4px; }
+  .skill-role { font-size: 11px; color: #475569; line-height: 1.5; margin-top: 6px; }
+  .skill-out  { font-size: 10px; color: #065f46; font-weight: 600; margin-top: 6px;
+                background: #ecfdf5; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+
+  /* 피드백 루프 */
+  .loop-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .loop-tag { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px; white-space: nowrap; }
+  .loop-tag.trigger { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+  .loop-tag.cond    { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+  .loop-tag.act     { background: #e8f0fe; color: #1a56db; border: 1px solid #93c5fd; }
+  .loop-arrow { color: #94a3b8; font-size: 14px; }
+  .loop-note  { font-size: 10px; color: #64748b; }
+
+  /* 범례 */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #64748b; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Meta Harness — 스킬 역할 & 인터랙션</h1>
+  <p class="subtitle">코어 하네스를 관찰하고 개선 판단 근거를 쌓는 inspecting tool 레이어</p>
+
+  <!-- 섹션 1: 두 레이어 구조 -->
+  <div class="section">
+    <div class="section-title" style="border-color: #334155;">
+      <span class="num" style="background:#334155;">1</span>
+      두 레이어 구조
+    </div>
+    <div class="layers">
+      <div class="layer-box layer-core">
+        <div class="layer-title">
+          <span class="dot" style="background:#334155;"></span>
+          코어 하네스 — 실행 레이어
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="node core" style="max-width:100%; text-align:left; padding: 8px 14px;">🧪 tdd-guard-claude &nbsp;<span style="font-weight:400;font-size:11px;">코드 작성 시 테스트 강제</span></div>
+          <div class="node core" style="max-width:100%; text-align:left; padding: 8px 14px;">🔒 git-guard-claude &nbsp;<span style="font-weight:400;font-size:11px;">브랜치/커밋/PR 컨벤션 + 리뷰 파이프라인</span></div>
+          <div class="node core" style="max-width:100%; text-align:left; padding: 8px 14px;">🛡 security-guard &nbsp;<span style="font-weight:400;font-size:11px;">OWASP Top 10 보안 취약점 탐지</span></div>
+        </div>
+        <p style="margin-top:12px; font-size:11px; color:#64748b;">→ 매 코드 작업 시 자동 발동. 직접 품질을 통제.</p>
+      </div>
+      <div class="layer-box layer-meta">
+        <div class="layer-title">
+          <span class="dot" style="background:#7c3aed;"></span>
+          메타 하네스 — 관찰 레이어
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="node meta" style="max-width:100%; text-align:left; padding: 8px 14px;">📊 harness-analysis &nbsp;<span style="font-weight:400;font-size:11px;">토큰·REJECT율 수집</span></div>
+          <div class="node meta" style="max-width:100%; text-align:left; padding: 8px 14px;">📝 harness-log &nbsp;<span style="font-weight:400;font-size:11px;">일지·블루프린트·regression_signal</span></div>
+          <div class="node meta" style="max-width:100%; text-align:left; padding: 8px 14px;">📚 harness-reference &nbsp;<span style="font-weight:400;font-size:11px;">아티클 저장 + 즉시 평가</span></div>
+          <div class="node meta" style="max-width:100%; text-align:left; padding: 8px 14px;">🔍 harness-review &nbsp;<span style="font-weight:400;font-size:11px;">패턴 분석 + 수정 트리거 판단</span></div>
+          <div class="node meta" style="max-width:100%; text-align:left; padding: 8px 14px;">🔄 harness-resume &nbsp;<span style="font-weight:400;font-size:11px;">세션 간 컨텍스트 복원</span></div>
+        </div>
+        <p style="margin-top:12px; font-size:11px; color:#7c3aed;">→ 코어를 직접 건드리지 않음. 개선 판단 근거 축적.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 섹션 2: 세션 사이클 흐름 -->
+  <div class="section">
+    <div class="section-title" style="border-color: #7c3aed;">
+      <span class="num" style="background:#7c3aed;">2</span>
+      세션 사이클 흐름 — 언제 어떤 스킬이 발동하는가
+    </div>
+
+    <!-- 세션 시작 -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px; font-weight:700; color:#475569; margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px;">① 세션 시작</div>
+      <div class="flow">
+        <div class="node start">세션 시작</div>
+        <div class="arrow">→</div>
+        <div class="node meta">harness-resume<br><span style="font-weight:400;font-size:10px;">/harness-resume</span></div>
+        <div class="arrow">→</div>
+        <div class="node data">이전 일지 + 블루프린트<br>+ 다음 프롬프트 복원</div>
+        <div class="arrow">→</div>
+        <div class="node meta">harness-analysis start<br><span style="font-weight:400;font-size:10px;">/harness-analysis start</span></div>
+        <div class="arrow">→</div>
+        <div class="node data">session.json<br>(브랜치·커밋·시각 기록)</div>
+      </div>
+    </div>
+
+    <!-- 세션 중 -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px; font-weight:700; color:#475569; margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px;">② 세션 진행 중</div>
+      <div class="flow" style="align-items:flex-start;">
+        <div class="flow-col">
+          <div class="node core" style="min-width:140px;">코어 하네스 동작<br><span style="font-weight:400;font-size:10px;">tdd → commit → security</span></div>
+          <div class="va" style="margin:6px 0;"><div class="arrow-line"></div><div class="arrow-tip">▼</div></div>
+          <div class="node signal">VERDICT: PASS/REJECT<br>JSONL에 기록됨</div>
+        </div>
+        <div class="arrow" style="margin-top:16px;">→</div>
+        <div class="flow-col">
+          <div class="node meta" style="min-width:140px;">harness-reference<br><span style="font-weight:400;font-size:10px;">(아티클 읽을 때마다)</span></div>
+          <div class="va" style="margin:6px 0;"><div class="arrow-line"></div><div class="arrow-tip">▼</div></div>
+          <div class="node data">references/ + evaluations/<br>즉시 스킬 평가 저장</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 세션 종료 -->
+    <div>
+      <div style="font-size:11px; font-weight:700; color:#475569; margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px;">③ 세션 종료</div>
+      <div class="flow">
+        <div class="node meta">harness-analysis end<br><span style="font-weight:400;font-size:10px;">/harness-analysis end</span></div>
+        <div class="arrow">→</div>
+        <div class="node data">report.json<br>reject_rates 집계</div>
+        <div class="arrow">→</div>
+        <div class="node meta">harness-log<br><span style="font-weight:400;font-size:10px;">/harness-log</span></div>
+        <div class="arrow">→</div>
+        <div class="node data">일지.md + blueprint.json<br>regression_signal 계산</div>
+        <div class="arrow">→</div>
+        <div class="node data">원격 서버<br>동기화</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 섹션 3: 각 스킬 역할 카드 -->
+  <div class="section">
+    <div class="section-title" style="border-color: #7c3aed;">
+      <span class="num" style="background:#7c3aed;">3</span>
+      메타 하네스 스킬별 역할
+    </div>
+    <div class="skill-cards">
+      <div class="skill-card meta-card">
+        <div class="skill-name">📊 harness-analysis</div>
+        <span class="skill-when">세션 시작·종료</span>
+        <div class="skill-role">코어 스킬의 REJECT율과 토큰 소비를 세션 단위로 측정. JSONL에서 VERDICT 패턴을 감지해 code-reviewer / security-guard의 거부율을 계산.</div>
+        <span class="skill-out">→ report.json (reject_rates)</span>
+      </div>
+      <div class="skill-card meta-card">
+        <div class="skill-name">📝 harness-log</div>
+        <span class="skill-when">세션 종료</span>
+        <div class="skill-role">세션 일지와 블루프린트 스냅샷 저장. 직전 분석 리포트의 reject_rates를 비교해 regression_signal 생성. 다음 에이전트를 위한 핸드오프 프롬프트 작성.</div>
+        <span class="skill-out">→ logs/ + blueprints/ (regression_signal)</span>
+      </div>
+      <div class="skill-card meta-card">
+        <div class="skill-name">🔄 harness-resume</div>
+        <span class="skill-when">세션 시작</span>
+        <div class="skill-role">최근 일지와 블루프린트를 읽어 이전 세션 컨텍스트를 복원. 핸드오프 프롬프트와 다음 할 일을 브리핑해 새 에이전트가 빠르게 이어받을 수 있도록 함.</div>
+        <span class="skill-out">→ 컨텍스트 브리핑</span>
+      </div>
+      <div class="skill-card meta-card">
+        <div class="skill-name">📚 harness-reference</div>
+        <span class="skill-when">아티클 읽을 때</span>
+        <div class="skill-role">URL에서 아티클을 읽고 요약·태그·연결 스킬을 제안. 연결 스킬이 있으면 Golden Rule 기준으로 즉시 평가. 평가 결과를 evaluations/에 누적.</div>
+        <span class="skill-out">→ references/ + evaluations/</span>
+      </div>
+      <div class="skill-card meta-card">
+        <div class="skill-name">🔍 harness-review</div>
+        <span class="skill-when">온디맨드</span>
+        <div class="skill-role">누적된 평가 이력에서 서로 다른 아티클 관점으로 3회 이상 반복되는 갭을 추출. 코어 수정 트리거 기준과 현재 상태를 대조해 사람 판단을 일관되게 지원.</div>
+        <span class="skill-out">→ 수정 트리거 판단</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 섹션 4: 코어 수정 피드백 루프 -->
+  <div class="section">
+    <div class="section-title" style="border-color: #f59e0b;">
+      <span class="num" style="background:#f59e0b;">4</span>
+      코어 수정 트리거 — 수작업 판단 기준
+    </div>
+    <p style="font-size:12px; color:#64748b; margin-bottom:16px;">자동화 아님. 메타 하네스가 신호를 만들고, 사람이 판단해서 코어를 수정.</p>
+
+    <div class="loop-row">
+      <span class="loop-tag trigger">📊 reject_rate 이탈</span>
+      <span class="loop-arrow">→</span>
+      <span class="loop-tag cond">5회 실측 후 평균 대비 2배↑</span>
+      <span class="loop-arrow">→</span>
+      <span class="loop-tag act">code-reviewer / security-guard 기준 방향 검토</span>
+      <span class="loop-note">(강화인지 완화인지 판단 필요)</span>
+    </div>
+    <div class="loop-row">
+      <span class="loop-tag trigger">🔍 동일 갭 반복</span>
+      <span class="loop-arrow">→</span>
+      <span class="loop-tag cond">서로 다른 아티클 3종 이상</span>
+      <span class="loop-arrow">→</span>
+      <span class="loop-tag act">다음 세션 첫 작업으로 해당 스킬 수정</span>
+      <span class="loop-note">harness-log "내일 바로 할 일"에 기록</span>
+    </div>
+    <div class="loop-row">
+      <span class="loop-tag trigger">📝 needs-work 누적</span>
+      <span class="loop-arrow">→</span>
+      <span class="loop-tag cond">같은 스킬에 2개↑ 아티클 needs-work</span>
+      <span class="loop-arrow">→</span>
+      <span class="loop-tag act">harness-review 우선 실행 후 판단</span>
+      <span class="loop-note">(즉시 수정 아님)</span>
+    </div>
+
+    <div style="margin-top:20px; padding:14px 18px; background:#f8fafc; border-radius:10px; border-left:4px solid #7c3aed;">
+      <div style="font-size:12px; font-weight:700; color:#5b21b6; margin-bottom:8px;">현재 상태 (2026-04-13 기준)</div>
+      <div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div><span style="font-size:11px; color:#475569;">reject_rate 실측</span><br><span style="font-size:14px; font-weight:700; color:#1a1a2e;">1회</span> <span style="font-size:10px; color:#94a3b8;">/ 5회 기준 미적용</span></div>
+        <div><span style="font-size:11px; color:#475569;">반복 갭 최다</span><br><span style="font-size:14px; font-weight:700; color:#1a1a2e;">0종</span> <span style="font-size:10px; color:#94a3b8;">/ 3종 기준 미달</span></div>
+        <div><span style="font-size:11px; color:#475569;">평가 누적</span><br><span style="font-size:14px; font-weight:700; color:#1a1a2e;">3회</span> <span style="font-size:10px; color:#94a3b8;">(harness-analysis, harness-log, harness-review)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 범례 -->
+  <div style="padding: 0 4px;">
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:#1e293b;"></span>코어 하네스 스킬</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#ede9fe; border:1px solid #c4b5fd;"></span>메타 하네스 스킬</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#ecfdf5; border:1px solid #6ee7b7;"></span>산출물 / 데이터</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#fff7ed; border:1px solid #fdba74;"></span>트리거 신호</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
