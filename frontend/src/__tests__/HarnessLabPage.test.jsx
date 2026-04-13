@@ -162,6 +162,27 @@ describe('HarnessLabPage', () => {
     expect(screen.getByText(KR.runHarnessLog)).toBeInTheDocument();
   });
 
+  it('\uC2DC\uBC94\uC6B4\uD589 \uD0ED\uC5D0\uC11C \uB9AC\uD3EC\uD2B8 \uD074\uB9AD \uC2DC efficiency \uC139\uC158\uACFC OVERHEAD \uBC30\uC9C0\uAC00 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
+    renderPage();
+    fireEvent.click(screen.getByText('시범운행'));
+    const reportBtn = await screen.findByRole('button', { name: /2026-04-08/ });
+    fireEvent.click(reportBtn);
+    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith('report-2026-04-08'));
+    expect(await screen.findByText('OVERHEAD')).toBeInTheDocument();
+    expect(screen.getByText('0.03')).toBeInTheDocument();
+    expect(screen.getByText('baseline avg: 0.02')).toBeInTheDocument();
+  });
+
+  it('\uC2DC\uBC94\uC6B4\uD589 \uB9AC\uD3EC\uD2B8\uC5D0\uC11C reject_rates\uAC00 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
+    renderPage();
+    fireEvent.click(screen.getByText('시범운행'));
+    const reportBtn = await screen.findByRole('button', { name: /2026-04-08/ });
+    fireEvent.click(reportBtn);
+    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith('report-2026-04-08'));
+    expect(await screen.findByText(/1\/2 REJECT/)).toBeInTheDocument();
+    expect(screen.getByText(/50%/)).toBeInTheDocument();
+  });
+
   it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uD0ED\uC5D0\uC11C \uC2A4\uD82C \uBAA9\uB85D\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
     const tabs = screen.getAllByText(KR.blueprintTab);
