@@ -6,7 +6,7 @@ description: >
   end: git 이력 + 품질 지표 수집 후 리포트 생성
   sync: 리포트를 harness-lab DB에 업로드
   harness-log와 컨텍스트를 공유하지 않으며 .harness-lab/analysis/ 에만 기록합니다.
-version: 1.0.0
+version: 1.2.0
 ---
 
 # Harness Analysis
@@ -92,7 +92,7 @@ gh CLI 없거나 PR 없으면 `null` 처리.
   git diff <start_commit>..HEAD --name-only | wc -l
   ```
 
-#### 5. 토큰 사용량 + 스킬 발동 횟수 + REJECT 비율 수집
+#### 5. 토큰 사용량 + 스킬 발동 횟수 + REJECT 비율 + 효율 지표 수집
 
 Claude Code 세션 JSONL에서 start 시각 이후 데이터를 집계합니다.
 `code-reviewer`와 `security-guard`는 VERDICT 패턴을 추가로 감지해 reject_rates를 계산합니다.
@@ -102,7 +102,8 @@ node -e "
 const fs = require('fs'), path = require('path'), os = require('os');
 
 const startedAt = '<started_at>'; // session.json의 started_at 값으로 치환
-const GUARD_SKILLS = ['code-reviewer', 'security-guard'];
+const VERDICT_SKILLS = ['code-reviewer', 'security-guard']; // VERDICT 감지 대상
+const ALL_GUARD_SKILLS = ['tdd-guard-claude', 'git-guard-claude', 'code-reviewer', 'security-guard']; // 효율 지표 대상
 
 // ~/.claude/projects/ 아래 가장 최근 수정된 .jsonl 찾기
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
@@ -118,13 +119,15 @@ fs.readdirSync(projectsDir).forEach(proj => {
   } catch(e) {}
 });
 
-if (!newestFile) { console.log(JSON.stringify({ tokens: null, skill_invocations: {}, reject_rates: {} })); process.exit(0); }
+if (!newestFile) { console.log(JSON.stringify({ tokens: null, skill_invocations: {}, reject_rates: {}, guard_invocations: 0, total_invocations: 0 })); process.exit(0); }
 
 const lines = fs.readFileSync(newestFile, 'utf8').trim().split('\n');
 let inputTokens = 0, outputTokens = 0, cacheRead = 0, cacheCreation = 0;
 const skillCounts = {};
 const rejectRates = {};
 let lastGuardSkill = null;
+let guardInvocations = 0;
+let totalInvocations = 0;
 
 lines.forEach(l => {
   try {
@@ -147,7 +150,9 @@ lines.forEach(l => {
         if (c.type === 'tool_use' && c.name === 'Skill' && c.input?.skill) {
           const sk = c.input.skill;
           skillCounts[sk] = (skillCounts[sk] || 0) + 1;
-          if (GUARD_SKILLS.includes(sk)) {
+          totalInvocations++;
+          if (ALL_GUARD_SKILLS.includes(sk)) guardInvocations++;
+          if (VERDICT_SKILLS.includes(sk)) {
             if (!rejectRates[sk]) rejectRates[sk] = { runs: 0, reject: 0 };
             rejectRates[sk].runs++;
             lastGuardSkill = sk;
@@ -176,12 +181,71 @@ Object.keys(rejectRates).forEach(sk => {
 console.log(JSON.stringify({
   tokens: { input: inputTokens, output: outputTokens, cache_read: cacheRead, cache_creation: cacheCreation, total: inputTokens + outputTokens + cacheRead + cacheCreation },
   skill_invocations: skillCounts,
-  reject_rates: rejectRates
+  reject_rates: rejectRates,
+  guard_invocations: guardInvocations,
+  total_invocations: totalInvocations
 }));
 "
 ```
 
-결과를 `quality` 오브젝트에 포함합니다.
+스크립트 결과(`guard_invocations`, `total_invocations`)와 Step 2의 git diff 통계(`insertions`, `deletions`)를 조합해 효율 지표를 계산합니다:
+
+```
+loc = insertions + deletions
+guard_invocations_per_loc = loc > 0 ? round(guard_invocations / loc, 2) : null
+total_invocations_per_loc = loc > 0 ? round(total_invocations / loc, 2) : null
+```
+
+결과를 `quality.efficiency` 오브젝트에 포함합니다.
+
+#### 5.5. baseline.json 업데이트 및 overhead_flag 판정
+
+경로: `.harness-lab/analysis/baseline.json`
+
+파일이 없으면 빈 sessions 배열로 초기화합니다.
+
+```json
+{
+  "sessions": [
+    { "date": "YYYY-MM-DD", "guard_invocations_per_loc": 0.05 }
+  ]
+}
+```
+
+**업데이트 규칙:**
+1. 현재 세션의 `guard_invocations_per_loc`이 `null`이 아닌 경우에만 sessions에 추가
+2. sessions는 최근 5개만 유지 (오래된 것부터 제거)
+3. 5개 평균(`baseline_avg`)을 계산
+4. `overhead_flag = guard_invocations_per_loc > baseline_avg * 2` (baseline_avg가 0이면 false)
+
+```bash
+node -e "
+const fs = require('fs');
+const BASELINE_PATH = '.harness-lab/analysis/baseline.json';
+const guardPerLoc = <guard_invocations_per_loc>; // 계산된 값으로 치환
+const today = '<YYYY-MM-DD>';
+
+let baseline = { sessions: [] };
+try { baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')); } catch(e) {}
+
+let overheadFlag = false;
+let baselineAvg = null;
+
+if (guardPerLoc !== null) {
+  baseline.sessions.push({ date: today, guard_invocations_per_loc: guardPerLoc });
+  if (baseline.sessions.length > 5) baseline.sessions = baseline.sessions.slice(-5);
+  fs.writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, 2));
+}
+
+if (baseline.sessions.length > 0) {
+  const vals = baseline.sessions.map(s => s.guard_invocations_per_loc).filter(v => v !== null);
+  baselineAvg = vals.length > 0 ? Math.round((vals.reduce((a,b) => a+b, 0) / vals.length) * 100) / 100 : null;
+  overheadFlag = (baselineAvg !== null && baselineAvg > 0 && guardPerLoc !== null) ? guardPerLoc > baselineAvg * 2 : false;
+}
+
+console.log(JSON.stringify({ baseline_avg: baselineAvg, overhead_flag: overheadFlag }));
+"
+```
 
 #### 6. 리포트 생성
 
@@ -230,6 +294,12 @@ console.log(JSON.stringify({
     "reject_rates": {
       "code-reviewer": { "runs": 2, "reject": 1, "rate": 0.5 },
       "security-guard": { "runs": 1, "reject": 0, "rate": 0.0 }
+    },
+    "efficiency": {
+      "guard_invocations_per_loc": 0.03,
+      "total_invocations_per_loc": 0.04,
+      "baseline_avg": 0.02,
+      "overhead_flag": true
     }
   }
 }
