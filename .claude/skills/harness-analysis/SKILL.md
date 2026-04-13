@@ -92,15 +92,17 @@ gh CLI 없거나 PR 없으면 `null` 처리.
   git diff <start_commit>..HEAD --name-only | wc -l
   ```
 
-#### 5. 토큰 사용량 + 스킬 발동 횟수 수집
+#### 5. 토큰 사용량 + 스킬 발동 횟수 + REJECT 비율 수집
 
 Claude Code 세션 JSONL에서 start 시각 이후 데이터를 집계합니다.
+`code-reviewer`와 `security-guard`는 VERDICT 패턴을 추가로 감지해 reject_rates를 계산합니다.
 
 ```bash
 node -e "
 const fs = require('fs'), path = require('path'), os = require('os');
 
 const startedAt = '<started_at>'; // session.json의 started_at 값으로 치환
+const GUARD_SKILLS = ['code-reviewer', 'security-guard'];
 
 // ~/.claude/projects/ 아래 가장 최근 수정된 .jsonl 찾기
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
@@ -116,11 +118,13 @@ fs.readdirSync(projectsDir).forEach(proj => {
   } catch(e) {}
 });
 
-if (!newestFile) { console.log(JSON.stringify({ tokens: null, skill_invocations: {} })); process.exit(0); }
+if (!newestFile) { console.log(JSON.stringify({ tokens: null, skill_invocations: {}, reject_rates: {} })); process.exit(0); }
 
 const lines = fs.readFileSync(newestFile, 'utf8').trim().split('\n');
 let inputTokens = 0, outputTokens = 0, cacheRead = 0, cacheCreation = 0;
 const skillCounts = {};
+const rejectRates = {};
+let lastGuardSkill = null;
 
 lines.forEach(l => {
   try {
@@ -136,22 +140,43 @@ lines.forEach(l => {
       cacheCreation += u.cache_creation_input_tokens || 0;
     }
 
-    // 스킬 발동 카운트
     const content = obj.message?.content;
     if (Array.isArray(content)) {
       content.forEach(c => {
+        // 스킬 발동 카운트
         if (c.type === 'tool_use' && c.name === 'Skill' && c.input?.skill) {
           const sk = c.input.skill;
           skillCounts[sk] = (skillCounts[sk] || 0) + 1;
+          if (GUARD_SKILLS.includes(sk)) {
+            if (!rejectRates[sk]) rejectRates[sk] = { runs: 0, reject: 0 };
+            rejectRates[sk].runs++;
+            lastGuardSkill = sk;
+          }
+        }
+        // VERDICT 감지 — 직전에 발동된 guard 스킬에 귀속
+        if (c.type === 'text' && c.text && lastGuardSkill) {
+          if (/VERDICT:\s*REJECT/i.test(c.text)) {
+            rejectRates[lastGuardSkill].reject++;
+            lastGuardSkill = null;
+          } else if (/VERDICT:\s*PASS/i.test(c.text)) {
+            lastGuardSkill = null;
+          }
         }
       });
     }
   } catch(e) {}
 });
 
+// reject_rate 계산
+Object.keys(rejectRates).forEach(sk => {
+  const r = rejectRates[sk];
+  r.rate = r.runs > 0 ? Math.round((r.reject / r.runs) * 100) / 100 : null;
+});
+
 console.log(JSON.stringify({
   tokens: { input: inputTokens, output: outputTokens, cache_read: cacheRead, cache_creation: cacheCreation, total: inputTokens + outputTokens + cacheRead + cacheCreation },
-  skill_invocations: skillCounts
+  skill_invocations: skillCounts,
+  reject_rates: rejectRates
 }));
 "
 ```
@@ -199,7 +224,12 @@ console.log(JSON.stringify({
     "skill_invocations": {
       "tdd-guard-claude": 3,
       "git-guard-claude": 1,
+      "code-reviewer": 2,
       "security-guard": 1
+    },
+    "reject_rates": {
+      "code-reviewer": { "runs": 2, "reject": 1, "rate": 0.5 },
+      "security-guard": { "runs": 1, "reject": 0, "rate": 0.0 }
     }
   }
 }
