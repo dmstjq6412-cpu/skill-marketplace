@@ -5,7 +5,7 @@ description: >
   .harness-lab/logs/YYYY-MM-DD.md 에 저장하고,
   블루프린트 스냅샷을 .harness-lab/blueprints/YYYY-MM-DD.json 에 저장합니다.
   HarnessLabPage UI의 핸드오프 흐름과 동기화된 섹션 구조를 사용합니다.
-version: 2.0.0
+version: 2.4.0
 ---
 
 # Harness Log — 세션 일지 저장
@@ -149,7 +149,7 @@ const https = require('https');
 const BASE = process.env.VITE_API_URL || 'https://skill-marketplace-umzq.onrender.com';
 
 function post(path, body) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const data = JSON.stringify(body);
     const url = new URL(path, BASE);
     const req = https.request(url, {
@@ -167,16 +167,30 @@ function post(path, body) {
 }
 
 async function main() {
-  const logContent = fs.readFileSync('.harness-lab/logs/YYYY-MM-DD.md', 'utf8');
-  const blueprint = JSON.parse(fs.readFileSync('.harness-lab/blueprints/YYYY-MM-DD.json', 'utf8'));
-  await post('/api/harness/logs', { date: 'YYYY-MM-DD', content: logContent });
-  await post('/api/harness/blueprints', blueprint);
+  const TODAY = new Date().toISOString().split('T')[0];
+  const logContent = fs.readFileSync('.harness-lab/logs/' + TODAY + '.md', 'utf8');
+  const blueprint = JSON.parse(fs.readFileSync('.harness-lab/blueprints/' + TODAY + '.json', 'utf8'));
+
+  // 로그 동기화
+  await post('/api/harness/logs', { date: TODAY, content: logContent });
+
+  // 블루프린트 동기화 — 서버 API는 스킬별 entry 형식을 기대하므로 변환 후 전송
+  // POST /api/harness/blueprints: { skill, date, change, reason, issues, articles }
+  for (const skill of blueprint.skills) {
+    await post('/api/harness/blueprints', {
+      skill: skill.name,
+      date: TODAY,
+      change: skill.role + ' (status: ' + skill.status + ')',
+      reason: blueprint.session_summary || '',
+      issues: [],
+      articles: []
+    });
+  }
 }
 main();
 "
 ```
 
-- `YYYY-MM-DD`는 실제 날짜로 치환합니다.
 - 서버 응답이 실패해도 로컬 파일은 이미 저장되었으므로 에러만 보고하고 진행합니다.
 - 성공 시 "원격 서버 동기화 완료"를 보고합니다.
 
