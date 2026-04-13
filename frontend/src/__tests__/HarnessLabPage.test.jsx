@@ -9,15 +9,23 @@ vi.mock('../components/MarkdownViewer', () => ({
 const mockFetchHarnessLogs = vi.fn();
 const mockFetchHarnessLog = vi.fn();
 const mockFetchHarnessBlueprints = vi.fn();
-const mockFetchHarnessBlueprint = vi.fn();
-const mockFetchHarnessBlueprintDiff = vi.fn();
+const mockFetchHarnessBlueprintBySkill = vi.fn();
+const mockFetchHarnessAnalyses = vi.fn();
+const mockFetchHarnessAnalysis = vi.fn();
+const mockFetchHarnessReferences = vi.fn();
+const mockDeleteHarnessReference = vi.fn();
+const mockFetchHarnessEvaluations = vi.fn();
 
 vi.mock('../api/client', () => ({
   fetchHarnessLogs: (...args) => mockFetchHarnessLogs(...args),
   fetchHarnessLog: (...args) => mockFetchHarnessLog(...args),
   fetchHarnessBlueprints: (...args) => mockFetchHarnessBlueprints(...args),
-  fetchHarnessBlueprint: (...args) => mockFetchHarnessBlueprint(...args),
-  fetchHarnessBlueprintDiff: (...args) => mockFetchHarnessBlueprintDiff(...args),
+  fetchHarnessBlueprintBySkill: (...args) => mockFetchHarnessBlueprintBySkill(...args),
+  fetchHarnessAnalyses: (...args) => mockFetchHarnessAnalyses(...args),
+  fetchHarnessAnalysis: (...args) => mockFetchHarnessAnalysis(...args),
+  fetchHarnessReferences: (...args) => mockFetchHarnessReferences(...args),
+  deleteHarnessReference: (...args) => mockDeleteHarnessReference(...args),
+  fetchHarnessEvaluations: (...args) => mockFetchHarnessEvaluations(...args),
 }));
 
 const { default: HarnessLabPage } = await import('../pages/HarnessLabPage');
@@ -72,20 +80,45 @@ const MOCK_BLUEPRINT = {
   session_summary: 'Implemented harness-lab handoff flow',
 };
 
+const MOCK_ANALYSIS_LIST = [
+  { id: 'report-2026-04-08', date: '2026-04-08', branch: 'feature/3-efficiency', commit_count: 4 },
+];
+
+const MOCK_ANALYSIS_REPORT = {
+  id: 'report-2026-04-08',
+  date: '2026-04-08',
+  branch: 'feature/3-efficiency',
+  started_at: '2026-04-08T09:00:00Z',
+  ended_at: '2026-04-08T17:00:00Z',
+  git: { start_commit: 'abc1234', end_commit: 'def5678', commit_count: 4, commits: [], files_changed: 6, insertions: 120, deletions: 40 },
+  pr: null,
+  quality: {
+    security_guard: 'PASS',
+    test_file_ratio: 0.33,
+    tokens: { input: 1000, output: 300, cache_read: 20000, cache_creation: 500, total: 21800 },
+    skill_invocations: { 'tdd-guard-claude': 3, 'code-reviewer': 2 },
+    reject_rates: {
+      'code-reviewer': { runs: 2, reject: 1, rate: 0.5 },
+    },
+    efficiency: {
+      guard_invocations_per_loc: 0.03,
+      total_invocations_per_loc: 0.04,
+      baseline_avg: 0.02,
+      overhead_flag: true,
+    },
+  },
+};
+
 function seedMocks() {
   mockFetchHarnessLogs.mockResolvedValue({ logs: MOCK_LOGS });
-  mockFetchHarnessBlueprints.mockResolvedValue({ blueprints: MOCK_BLUEPRINTS });
+  mockFetchHarnessBlueprints.mockResolvedValue({ skills: MOCK_BLUEPRINTS });
   mockFetchHarnessLog.mockResolvedValue({ date: '2026-04-08', content: MOCK_LOG_CONTENT });
-  mockFetchHarnessBlueprint.mockResolvedValue(MOCK_BLUEPRINT);
-  mockFetchHarnessBlueprintDiff.mockResolvedValue({
-    from: '2026-04-07',
-    to: '2026-04-08',
-    coverage_before: { current: 30 },
-    coverage_after: { current: 45 },
-    changes: [
-      { name: 'git-guard-claude', type: 'changed', before: { status: 'TODO', version: 'v0.9.0' }, after: { status: 'IN_PROGRESS', version: 'v1.0.0' } },
-    ],
-  });
+  mockFetchHarnessBlueprintBySkill.mockResolvedValue(MOCK_BLUEPRINT);
+  mockFetchHarnessAnalyses.mockResolvedValue({ reports: MOCK_ANALYSIS_LIST });
+  mockFetchHarnessAnalysis.mockResolvedValue(MOCK_ANALYSIS_REPORT);
+  mockFetchHarnessReferences.mockResolvedValue({ references: [] });
+  mockDeleteHarnessReference.mockResolvedValue({});
+  mockFetchHarnessEvaluations.mockResolvedValue({ evaluations: [] });
 }
 
 function renderPage() {
