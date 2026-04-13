@@ -11,6 +11,12 @@ const mockFetchHarnessLog = vi.fn();
 const mockFetchHarnessBlueprints = vi.fn();
 const mockFetchHarnessBlueprint = vi.fn();
 const mockFetchHarnessBlueprintDiff = vi.fn();
+const mockFetchHarnessAnalyses = vi.fn();
+const mockFetchHarnessAnalysis = vi.fn();
+const mockFetchHarnessReferences = vi.fn();
+const mockFetchHarnessEvaluations = vi.fn();
+const mockDeleteHarnessReference = vi.fn();
+const mockFetchHarnessBlueprintBySkill = vi.fn();
 
 vi.mock('../api/client', () => ({
   fetchHarnessLogs: (...args) => mockFetchHarnessLogs(...args),
@@ -18,6 +24,12 @@ vi.mock('../api/client', () => ({
   fetchHarnessBlueprints: (...args) => mockFetchHarnessBlueprints(...args),
   fetchHarnessBlueprint: (...args) => mockFetchHarnessBlueprint(...args),
   fetchHarnessBlueprintDiff: (...args) => mockFetchHarnessBlueprintDiff(...args),
+  fetchHarnessAnalyses: (...args) => mockFetchHarnessAnalyses(...args),
+  fetchHarnessAnalysis: (...args) => mockFetchHarnessAnalysis(...args),
+  fetchHarnessReferences: (...args) => mockFetchHarnessReferences(...args),
+  fetchHarnessEvaluations: (...args) => mockFetchHarnessEvaluations(...args),
+  deleteHarnessReference: (...args) => mockDeleteHarnessReference(...args),
+  fetchHarnessBlueprintBySkill: (...args) => mockFetchHarnessBlueprintBySkill(...args),
 }));
 
 const { default: HarnessLabPage } = await import('../pages/HarnessLabPage');
@@ -72,11 +84,40 @@ const MOCK_BLUEPRINT = {
   session_summary: 'Implemented harness-lab handoff flow',
 };
 
+const MOCK_ANALYSIS_LIST = [
+  { id: 1, date: '2026-04-13', branch: 'feature/2-reject-rate-tracking', git: { commit_count: 3 } },
+];
+
+const MOCK_ANALYSIS_REPORT = {
+  id: 1,
+  date: '2026-04-13',
+  branch: 'feature/2-reject-rate-tracking',
+  started_at: '2026-04-13T09:00:00Z',
+  ended_at: '2026-04-13T11:00:00Z',
+  git: { commit_count: 3, files_changed: 5, insertions: 80, deletions: 20, commits: [] },
+  pr: null,
+  quality: {
+    security_guard: 'PASS',
+    test_file_ratio: 0.4,
+    tokens: { input: 1000, output: 300, cache_read: 5000, cache_creation: 200, total: 6500 },
+    skill_invocations: { 'code-reviewer': 2, 'security-guard': 1 },
+    reject_rates: {
+      'code-reviewer': { runs: 2, reject: 1, rate: 0.5 },
+      'security-guard': { runs: 1, reject: 0, rate: 0.0 },
+    },
+  },
+};
+
 function seedMocks() {
   mockFetchHarnessLogs.mockResolvedValue({ logs: MOCK_LOGS });
   mockFetchHarnessBlueprints.mockResolvedValue({ blueprints: MOCK_BLUEPRINTS });
   mockFetchHarnessLog.mockResolvedValue({ date: '2026-04-08', content: MOCK_LOG_CONTENT });
   mockFetchHarnessBlueprint.mockResolvedValue(MOCK_BLUEPRINT);
+  mockFetchHarnessAnalyses.mockResolvedValue({ reports: MOCK_ANALYSIS_LIST });
+  mockFetchHarnessAnalysis.mockResolvedValue(MOCK_ANALYSIS_REPORT);
+  mockFetchHarnessReferences.mockResolvedValue({ references: [] });
+  mockFetchHarnessEvaluations.mockResolvedValue({ evaluations: [] });
+  mockFetchHarnessBlueprintBySkill.mockResolvedValue({ entries: [] });
   mockFetchHarnessBlueprintDiff.mockResolvedValue({
     from: '2026-04-07',
     to: '2026-04-08',
@@ -106,7 +147,7 @@ describe('HarnessLabPage', () => {
   it('\uC624\uB298 \uC778\uACC4 \uCE74\uB4DC\uAC00 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
     expect(screen.getByText(KR.todayHandoff)).toBeInTheDocument();
-    expect(await screen.findAllByText('Implemented harness-lab handoff flow')).toHaveLength(3);
+    expect(await screen.findAllByText('Implemented harness-lab handoff flow')).toHaveLength(2);
     expect(screen.getByRole('button', { name: KR.copyNextPrompt })).toBeInTheDocument();
   });
 
@@ -138,7 +179,7 @@ describe('HarnessLabPage', () => {
 
   it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 diff\uB97C \uAE30\uBCF8 \uB0A0\uC9DC\uB85C \uBD88\uB7EC\uC624\uACE0 \uC694\uC57D \uCE69\uC744 \uBCF4\uC5EC\uC900\uB2E4', async () => {
     renderPage();
-    fireEvent.click(screen.getByText(KR.blueprintTab));
+    fireEvent.click(screen.getAllByText(KR.blueprintTab)[1]);
     await waitFor(() => expect(mockFetchHarnessBlueprintDiff).toHaveBeenCalledWith('2026-04-07', '2026-04-08'));
     expect(await screen.findByText(KR.coverageDiff)).toBeInTheDocument();
     expect(screen.getByText(KR.changedOne)).toBeInTheDocument();
@@ -146,12 +187,35 @@ describe('HarnessLabPage', () => {
 
   it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC0C1\uC138\uC5D0\uC11C \uC5F0\uACB0\uB41C \uC2DC\uAC01\uD654\uB97C \uC5F4 \uC218 \uC788\uB2E4', async () => {
     renderPage();
-    fireEvent.click(screen.getByText(KR.blueprintTab));
+    fireEvent.click(screen.getAllByText(KR.blueprintTab)[1]);
     const blueprintButtons = await screen.findAllByRole('button', { name: /2026-04-08/ });
     fireEvent.click(blueprintButtons[0]);
     await screen.findByRole('button', { name: KR.openRelatedViz });
     fireEvent.click(screen.getByRole('button', { name: KR.openRelatedViz }));
     expect(await screen.findByTitle('git-guard')).toBeInTheDocument();
     expect(screen.getAllByText(KR.vizHint).length).toBeGreaterThan(0);
+  });
+
+  it('분석 탭에서 리포트 선택 시 reject_rates를 렌더링한다', async () => {
+    renderPage();
+    fireEvent.click(screen.getByText('시범운행'));
+    const reportBtn = await screen.findByText('2026-04-13');
+    fireEvent.click(reportBtn);
+    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith(1));
+    expect(await screen.findByText('REJECT 비율')).toBeInTheDocument();
+    expect(screen.getAllByText('code-reviewer').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('security-guard').length).toBeGreaterThan(0);
+  });
+
+  it('REJECT가 있는 스킬은 비율을 표시하고 REJECT가 없는 스킬은 0%를 표시한다', async () => {
+    renderPage();
+    fireEvent.click(screen.getByText('시범운행'));
+    await screen.findByText('2026-04-13');
+    fireEvent.click(screen.getByText('2026-04-13'));
+    await screen.findByText('REJECT 비율');
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('0%')).toBeInTheDocument();
+    expect(screen.getByText('1/2 REJECT')).toBeInTheDocument();
+    expect(screen.getByText('0/1 REJECT')).toBeInTheDocument();
   });
 });
