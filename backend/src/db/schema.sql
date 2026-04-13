@@ -34,14 +34,65 @@ CREATE TABLE IF NOT EXISTS harness_logs (
 );
 
 CREATE TABLE IF NOT EXISTS harness_blueprints (
-    date        TEXT PRIMARY KEY,
-    data        JSONB NOT NULL,
+    id          SERIAL PRIMARY KEY,
+    skill       TEXT NOT NULL,
+    date        TEXT NOT NULL,
+    change      TEXT NOT NULL,
+    reason      TEXT,
+    issues      JSONB NOT NULL DEFAULT '[]',
+    articles    JSONB NOT NULL DEFAULT '[]',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(skill, date)
 );
+
+CREATE INDEX IF NOT EXISTS idx_harness_blueprints_skill ON harness_blueprints(skill);
+CREATE INDEX IF NOT EXISTS idx_harness_blueprints_date ON harness_blueprints(date DESC);
 
 CREATE TABLE IF NOT EXISTS harness_viz (
     name        TEXT PRIMARY KEY,
     content     TEXT NOT NULL,
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS harness_analysis (
+    id          SERIAL PRIMARY KEY,
+    date        TEXT NOT NULL UNIQUE,
+    branch      TEXT NOT NULL,
+    started_at  TIMESTAMPTZ NOT NULL,
+    ended_at    TIMESTAMPTZ NOT NULL,
+    git         JSONB NOT NULL DEFAULT '{}',
+    pr          JSONB,
+    quality     JSONB NOT NULL DEFAULT '{}',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_harness_analysis_date ON harness_analysis(date DESC);
+
+CREATE TABLE IF NOT EXISTS harness_references (
+    id          SERIAL PRIMARY KEY,
+    title       TEXT NOT NULL,
+    url         TEXT NOT NULL UNIQUE,
+    summary     TEXT,
+    tags        JSONB NOT NULL DEFAULT '[]',
+    skills      JSONB NOT NULL DEFAULT '[]',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_harness_references_created_at ON harness_references(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS harness_evaluations (
+    id              SERIAL PRIMARY KEY,
+    skill           TEXT NOT NULL,
+    date            TEXT NOT NULL,
+    article_title   TEXT NOT NULL,
+    article_url     TEXT NOT NULL,
+    gaps            JSONB NOT NULL DEFAULT '[]',
+    suggestions     JSONB NOT NULL DEFAULT '[]',
+    verdict         TEXT NOT NULL DEFAULT 'partial',
+    resolved_at     TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_harness_evaluations_skill ON harness_evaluations(skill);
+CREATE INDEX IF NOT EXISTS idx_harness_evaluations_date ON harness_evaluations(date DESC);

@@ -32,8 +32,20 @@ export const fetchHarnessLog = (date) =>
 export const fetchHarnessBlueprints = () =>
   api.get('/harness/blueprints').then(r => r.data);
 
-export const fetchHarnessBlueprint = (date) =>
-  api.get(`/harness/blueprints/${date}`).then(r => r.data);
+export const fetchHarnessBlueprintBySkill = (skill) =>
+  api.get(`/harness/blueprints/${skill}`).then(r => r.data);
 
-export const fetchHarnessBlueprintDiff = (from, to) =>
-  api.get('/harness/blueprints/diff', { params: { from, to } }).then(r => r.data);
+export const fetchHarnessAnalyses = () =>
+  api.get('/harness/analysis').then(r => r.data);
+
+export const fetchHarnessAnalysis = (id) =>
+  api.get(`/harness/analysis/${id}`).then(r => r.data);
+
+export const fetchHarnessReferences = (tag) =>
+  api.get('/harness/references', { params: tag ? { tag } : {} }).then(r => r.data);
+
+export const deleteHarnessReference = (id) =>
+  api.delete(`/harness/references/${id}`).then(r => r.data);
+
+export const fetchHarnessEvaluations = (skill) =>
+  api.get(`/harness/evaluations/${skill}`).then(r => r.data);
