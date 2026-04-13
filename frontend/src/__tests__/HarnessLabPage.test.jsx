@@ -39,10 +39,6 @@ const KR = {
   noWrapups: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uB370\uC77C\uB9AC wrap-up\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessLog: '`/harness-log`\uB97C \uC2E4\uD589\uD574 \uCCAB \uAE30\uB85D\uC744 \uC800\uC7A5\uD558\uC138\uC694.',
   blueprintTab: '\uBE14\uB8E8\uD504\uB9B0\uD2B8',
-  coverageDiff: '\uCEE4\uBC84\uB9AC\uC9C0 +15%',
-  changedOne: '\uBCC0\uACBD 1',
-  openRelatedViz: '\uC5F0\uACB0\uB41C \uC2DC\uAC01\uD654 \uC5F4\uAE30',
-  vizHint: '\uBE0C\uB79C\uCE58 \uC804\uB7B5, \uB9AC\uBDF0 \uD750\uB984, git guard \uC790\uB3D9\uD654 \uC778\uACC4\uB97C \uB2E4\uB8EC \uB0A0\uC5D0 \uD655\uC778\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.',
 };
 
 const MOCK_LOGS = [
@@ -65,19 +61,16 @@ Implemented harness-lab handoff flow
 Continue the harness session and wire the prompt copy action.`;
 
 const MOCK_BLUEPRINTS = [
-  { date: '2026-04-08', coverage: { current: 45 }, session_summary: 'Implemented harness-lab handoff flow' },
-  { date: '2026-04-07', coverage: { current: 30 }, session_summary: 'Documented blueprint baseline' },
+  { skill: 'tdd-guard-claude', entry_count: 5, latest: { change: 'Added coverage threshold enforcement', date: '2026-04-08' } },
+  { skill: 'git-guard-claude', entry_count: 3, latest: { change: 'Improved branch naming validation', date: '2026-04-07' } },
 ];
 
-const MOCK_BLUEPRINT = {
-  date: '2026-04-08',
-  skills: [
-    { name: 'tdd-guard-claude', status: 'DONE', version: 'v2.0.0' },
-    { name: 'git-guard-claude', status: 'IN_PROGRESS', version: 'v1.0.0' },
+const MOCK_BLUEPRINT_HISTORY = {
+  skill: 'tdd-guard-claude',
+  entries: [
+    { date: '2026-04-08', change: 'Added coverage threshold enforcement', reason: 'Coverage below 80%', issues: [], articles: [] },
+    { date: '2026-04-01', change: 'Initial TDD policy', reason: 'Project kickoff', issues: [], articles: [] },
   ],
-  coverage: { current: 45, description: 'Current' },
-  pipeline: 'tdd -> code-review -> git-guard',
-  session_summary: 'Implemented harness-lab handoff flow',
 };
 
 const MOCK_ANALYSIS_LIST = [
@@ -113,7 +106,7 @@ function seedMocks() {
   mockFetchHarnessLogs.mockResolvedValue({ logs: MOCK_LOGS });
   mockFetchHarnessBlueprints.mockResolvedValue({ skills: MOCK_BLUEPRINTS });
   mockFetchHarnessLog.mockResolvedValue({ date: '2026-04-08', content: MOCK_LOG_CONTENT });
-  mockFetchHarnessBlueprintBySkill.mockResolvedValue(MOCK_BLUEPRINT);
+  mockFetchHarnessBlueprintBySkill.mockResolvedValue(MOCK_BLUEPRINT_HISTORY);
   mockFetchHarnessAnalyses.mockResolvedValue({ reports: MOCK_ANALYSIS_LIST });
   mockFetchHarnessAnalysis.mockResolvedValue(MOCK_ANALYSIS_REPORT);
   mockFetchHarnessReferences.mockResolvedValue({ references: [] });
@@ -139,7 +132,7 @@ describe('HarnessLabPage', () => {
   it('\uC624\uB298 \uC778\uACC4 \uCE74\uB4DC\uAC00 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
     expect(screen.getByText(KR.todayHandoff)).toBeInTheDocument();
-    expect(await screen.findAllByText('Implemented harness-lab handoff flow')).toHaveLength(3);
+    expect(await screen.findAllByText('Implemented harness-lab handoff flow')).toHaveLength(2);
     expect(screen.getByRole('button', { name: KR.copyNextPrompt })).toBeInTheDocument();
   });
 
@@ -169,22 +162,20 @@ describe('HarnessLabPage', () => {
     expect(screen.getByText(KR.runHarnessLog)).toBeInTheDocument();
   });
 
-  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 diff\uB97C \uAE30\uBCF8 \uB0A0\uC9DC\uB85C \uBD88\uB7EC\uC624\uACE0 \uC694\uC57D \uCE69\uC744 \uBCF4\uC5EC\uC900\uB2E4', async () => {
+  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uD0ED\uC5D0\uC11C \uC2A4\uD82C \uBAA9\uB85D\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
-    fireEvent.click(screen.getByText(KR.blueprintTab));
-    await waitFor(() => expect(mockFetchHarnessBlueprintDiff).toHaveBeenCalledWith('2026-04-07', '2026-04-08'));
-    expect(await screen.findByText(KR.coverageDiff)).toBeInTheDocument();
-    expect(screen.getByText(KR.changedOne)).toBeInTheDocument();
+    const tabs = screen.getAllByText(KR.blueprintTab);
+    fireEvent.click(tabs[tabs.length - 1]);
+    expect(await screen.findByText('tdd-guard-claude')).toBeInTheDocument();
+    expect(screen.getAllByText('git-guard-claude').length).toBeGreaterThan(0);
   });
 
-  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC0C1\uC138\uC5D0\uC11C \uC5F0\uACB0\uB41C \uC2DC\uAC01\uD654\uB97C \uC5F4 \uC218 \uC788\uB2E4', async () => {
+  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC2A4\uD82C \uD074\uB9AD \uC2DC fetchHarnessBlueprintBySkill\uC774 \uD638\uCD9C\uB41C\uB2E4', async () => {
     renderPage();
-    fireEvent.click(screen.getByText(KR.blueprintTab));
-    const blueprintButtons = await screen.findAllByRole('button', { name: /2026-04-08/ });
-    fireEvent.click(blueprintButtons[0]);
-    await screen.findByRole('button', { name: KR.openRelatedViz });
-    fireEvent.click(screen.getByRole('button', { name: KR.openRelatedViz }));
-    expect(await screen.findByTitle('git-guard')).toBeInTheDocument();
-    expect(screen.getAllByText(KR.vizHint).length).toBeGreaterThan(0);
+    const tabs = screen.getAllByText(KR.blueprintTab);
+    fireEvent.click(tabs[tabs.length - 1]);
+    const skillBtn = await screen.findByRole('button', { name: /tdd-guard-claude/ });
+    fireEvent.click(skillBtn);
+    await waitFor(() => expect(mockFetchHarnessBlueprintBySkill).toHaveBeenCalledWith('tdd-guard-claude'));
   });
 });
