@@ -221,6 +221,42 @@ function AnalysisDetail({ report }) {
           </div>
         )}
 
+        {report.quality?.token_phases && Object.keys(report.quality.token_phases).length > 0 && (() => {
+          const phases = Object.entries(report.quality.token_phases).sort((a, b) => b[1] - a[1]);
+          const total = phases.reduce((s, [, v]) => s + v, 0);
+          const PHASE_COLORS = {
+            'git-guard-claude':  { bar: 'bg-amber-400',  text: 'text-amber-700',  bg: 'bg-amber-50 border-amber-200' },
+            'tdd-guard-claude':  { bar: 'bg-violet-400', text: 'text-violet-700', bg: 'bg-violet-50 border-violet-200' },
+            'security-guard':    { bar: 'bg-red-400',    text: 'text-red-700',    bg: 'bg-red-50 border-red-200' },
+            'code-reviewer':     { bar: 'bg-orange-400', text: 'text-orange-700', bg: 'bg-orange-50 border-orange-200' },
+          };
+          const getColor = key => PHASE_COLORS[key] || { bar: 'bg-sky-400', text: 'text-sky-700', bg: 'bg-sky-50 border-sky-200' };
+          return (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">구간별 토큰 포션</p>
+              <div className="space-y-1.5">
+                {phases.map(([phase, tokens]) => {
+                  const pct = total > 0 ? (tokens / total) * 100 : 0;
+                  const { bar, text, bg } = getColor(phase);
+                  return (
+                    <div key={phase} className="space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded border ${bg} ${text}`}>{phase}</span>
+                        <span className="text-[11px] font-mono text-slate-500">
+                          {pct.toFixed(1)}% <span className="text-slate-400">({(tokens / 1000000).toFixed(1)}M)</span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {report.quality?.skill_invocations && Object.keys(report.quality.skill_invocations).length > 0 && (
           <div className="space-y-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">스킬 발동</p>

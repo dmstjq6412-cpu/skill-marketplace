@@ -120,7 +120,7 @@ fs.readdirSync(projectsDir).forEach(proj => {
   } catch(e) {}
 });
 
-if (!newestFile) { console.log(JSON.stringify({ tokens: null, skill_invocations: {}, reject_rates: {}, guard_invocations: 0, total_invocations: 0 })); process.exit(0); }
+if (!newestFile) { console.log(JSON.stringify({ tokens: null, skill_invocations: {}, reject_rates: {}, token_phases: {}, guard_invocations: 0, total_invocations: 0 })); process.exit(0); }
 
 const lines = fs.readFileSync(newestFile, 'utf8').trim().split('\n');
 let inputTokens = 0, outputTokens = 0, cacheRead = 0, cacheCreation = 0;
@@ -130,6 +130,10 @@ let lastGuardSkill = null;
 let guardInvocations = 0;
 let totalInvocations = 0;
 
+// 구간별 토큰 집계 — 스킬 발동 이후 다음 스킬 발동 전까지 토큰을 해당 스킬에 귀속
+const tokenPhases = {};
+let currentPhase = 'baseline';
+
 lines.forEach(l => {
   try {
     const obj = JSON.parse(l);
@@ -138,18 +142,21 @@ lines.forEach(l => {
     // 토큰 합산
     const u = obj.message?.usage;
     if (u) {
+      const t = (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
       inputTokens += u.input_tokens || 0;
       outputTokens += u.output_tokens || 0;
       cacheRead += u.cache_read_input_tokens || 0;
       cacheCreation += u.cache_creation_input_tokens || 0;
+      tokenPhases[currentPhase] = (tokenPhases[currentPhase] || 0) + t;
     }
 
     const content = obj.message?.content;
     if (Array.isArray(content)) {
       content.forEach(c => {
-        // 스킬 발동 카운트
+        // 스킬 발동 카운트 + 구간 전환
         if (c.type === 'tool_use' && c.name === 'Skill' && c.input?.skill) {
           const sk = c.input.skill;
+          currentPhase = sk;
           skillCounts[sk] = (skillCounts[sk] || 0) + 1;
           totalInvocations++;
           if (ALL_GUARD_SKILLS.includes(sk)) guardInvocations++;
@@ -183,6 +190,7 @@ console.log(JSON.stringify({
   tokens: { input: inputTokens, output: outputTokens, cache_read: cacheRead, cache_creation: cacheCreation, total: inputTokens + outputTokens + cacheRead + cacheCreation },
   skill_invocations: skillCounts,
   reject_rates: rejectRates,
+  token_phases: tokenPhases,
   guard_invocations: guardInvocations,
   total_invocations: totalInvocations
 }));
@@ -295,6 +303,13 @@ console.log(JSON.stringify({ baseline_avg: baselineAvg, overhead_flag: overheadF
     "reject_rates": {
       "code-reviewer": { "runs": 2, "reject": 1, "rate": 0.5 },
       "security-guard": { "runs": 1, "reject": 0, "rate": 0.0 }
+    },
+    "token_phases": {
+      "git-guard-claude": 19576087,
+      "tdd-guard-claude": 3109318,
+      "security-guard": 1293011,
+      "harness-analysis": 3811440,
+      "baseline": 175847
     },
     "efficiency": {
       "guard_invocations_per_loc": 0.03,
