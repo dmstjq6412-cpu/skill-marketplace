@@ -2,6 +2,7 @@ import express from 'express';
 import AdmZip from 'adm-zip';
 import { getPool } from '../db/database.js';
 import upload from '../middleware/upload.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -134,7 +135,7 @@ router.get('/:id/files/:fileId', async (req, res) => {
 // [BUG FIX] author 필드가 없거나 빈 문자열/공백만 있는 경우 400 반환
 // 기존: !author 는 빈 문자열('')에만 작동하고 공백(' ')은 통과시키는 문제 존재
 // 수정: author를 trim() 한 뒤 falsy 체크하여 공백 문자열도 거부
-router.post('/', upload.single('skill_file'), async (req, res) => {
+router.post('/', authenticate, upload.single('skill_file'), async (req, res) => {
   const { name, version = '1.0.0', author, description = '' } = req.body;
 
   // [FIX] author가 없거나, 빈 문자열이거나, 공백만 있으면 400 반환
@@ -212,7 +213,7 @@ router.post('/:id/download', async (req, res) => {
 });
 
 // DELETE /api/skills/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   const pool = getPool();
   try {
     const { rowCount } = await pool.query(`DELETE FROM skills WHERE id = $1`, [Number(req.params.id)]);

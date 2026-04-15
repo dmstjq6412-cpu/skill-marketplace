@@ -6,6 +6,12 @@ const BASE = import.meta.env.VITE_API_URL
 
 const api = axios.create({ baseURL: BASE });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('jwt_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 export const fetchSkills = (search = '', page = 1) =>
   api.get('/skills', { params: { search, page, limit: 20 } }).then(r => r.data);
 
@@ -49,3 +55,18 @@ export const deleteHarnessReference = (id) =>
 
 export const fetchHarnessEvaluations = (skill) =>
   api.get(`/harness/evaluations/${skill}`).then(r => r.data);
+
+export const fetchMe = () =>
+  api.get('/auth/me').then(r => r.data);
+
+export const exchangeAuthCode = (code) =>
+  api.get('/auth/token', { params: { code } }).then(r => r.data);
+
+export const loginWithCliToken = (token) =>
+  api.post('/auth/cli', { token }).then(r => r.data);
+
+export const getGithubLoginUrl = () => {
+  const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+  const redirectUri = `${import.meta.env.VITE_API_URL || ''}/api/auth/github/callback`;
+  return `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=read%3Auser&redirect_uri=${encodeURIComponent(redirectUri)}`;
+};
