@@ -1,7 +1,16 @@
 import express from 'express';
 import https from 'https';
 import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
 import { issueJwt, authenticate } from '../middleware/auth.js';
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15분
+  max: 20, // 15분 내 최대 20회 요청
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
 
 const router = express.Router();
 
@@ -89,7 +98,7 @@ function exchangeCodeForToken(code) {
 
 // GET /api/auth/github/callback — 브라우저 OAuth 흐름
 // JWT를 URL에 직접 노출하지 않고 일회용 코드로 교환
-router.get('/github/callback', async (req, res) => {
+router.get('/github/callback', authLimiter, async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).json({ error: 'Missing code' });
   if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
@@ -110,7 +119,7 @@ router.get('/github/callback', async (req, res) => {
 });
 
 // GET /api/auth/token?code=xxx — 일회용 코드를 JWT로 교환
-router.get('/token', (req, res) => {
+router.get('/token', authLimiter, (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).json({ error: 'Missing code' });
   const jwt = consumeOnetimeCode(code);
@@ -119,7 +128,7 @@ router.get('/token', (req, res) => {
 });
 
 // POST /api/auth/cli — CLI (gh auth token) 흐름
-router.post('/cli', async (req, res) => {
+router.post('/cli', authLimiter, async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: 'Missing token' });
 

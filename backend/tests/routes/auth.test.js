@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 
+// --- express-rate-limit mock ---
+// 기본적으로 모든 요청을 통과시키는 no-op 미들웨어로 mock한다.
+// rate limit 초과 시나리오는 각 테스트 케이스에서 rateLimit.default를 재설정한다.
+vi.mock('express-rate-limit', () => ({
+  default: vi.fn(() => (req, res, next) => next()),
+}));
+
 // --- https mock ---
 // githubApiGet과 exchangeCodeForToken 모두 https 모듈을 직접 사용하므로
 // https.get / https.request를 vi.fn()으로 교체한다.
@@ -31,6 +38,7 @@ vi.mock('../../src/middleware/auth.js', () => ({
 // mock 설정 완료 후 라우터 import
 const { default: authRouter } = await import('../../src/routes/auth.js');
 import https from 'https';
+import rateLimit from 'express-rate-limit';
 
 function buildApp() {
   const app = express();
@@ -250,5 +258,54 @@ describe('GET /me (현재 사용자 정보)', () => {
       .set('Authorization', 'invalid-format-token');
 
     expect(res.status).toBe(401);
+  });
+});
+
+// ============================================================
+// Rate Limiting
+// ============================================================
+describe('Rate Limiting (15분에 20회 제한)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // POST /cli — rate limit 초과 시 429 반환
+  it('POST /cli — rate limit 초과 시 429 반환', async () => {
+    // rateLimit mock이 429를 직접 반환하는 미들웨어로 교체
+    rateLimit.mockImplementation(() => (req, res, _next) => {
+      res.status(429).json({ error: 'Too many requests, please try again later' });
+    });
+
+    // 라우터를 새로 import하지 않고 mock 교체 후 buildApp()으로 검증
+    const { default: freshRouter } = await import('../../src/routes/auth.js?rate-cli');
+    const app = express();
+    app.use(express.json());
+    app.use('/', freshRouter);
+
+    const res = await request(app)
+      .post('/cli')
+      .send({ token: 'ghp_some_token' });
+
+    expect(res.status).toBe(429);
+    expect(res.body.error).toBe('Too many requests, please try again later');
+  });
+
+  // GET /github/callback — rate limit 초과 시 429 반환
+  it('GET /github/callback — rate limit 초과 시 429 반환', async () => {
+    // rateLimit mock이 429를 직접 반환하는 미들웨어로 교체
+    rateLimit.mockImplementation(() => (req, res, _next) => {
+      res.status(429).json({ error: 'Too many requests, please try again later' });
+    });
+
+    const { default: freshRouter } = await import('../../src/routes/auth.js?rate-callback');
+    const app = express();
+    app.use(express.json());
+    app.use('/', freshRouter);
+
+    const res = await request(app)
+      .get('/github/callback?code=some_code');
+
+    expect(res.status).toBe(429);
+    expect(res.body.error).toBe('Too many requests, please try again later');
   });
 });
