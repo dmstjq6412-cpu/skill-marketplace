@@ -18,6 +18,13 @@ vi.mock('../../src/db/database.js', () => ({
   getPool: () => mockPool,
 }));
 
+vi.mock('../../src/middleware/auth.js', () => ({
+  authenticate: (req, _res, next) => {
+    req.user = { github_id: 1, username: 'testuser' };
+    next();
+  },
+}));
+
 // Import router AFTER mocking
 const { default: skillsRouter } = await import('../../src/routes/skills.js');
 
