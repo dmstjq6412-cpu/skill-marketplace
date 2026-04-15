@@ -6,6 +6,7 @@ description: >
   end: git 이력 + 품질 지표 수집 후 리포트 생성
   sync: 리포트를 harness-lab DB에 업로드
   harness-log와 컨텍스트를 공유하지 않으며 .harness-lab/analysis/ 에만 기록합니다.
+
 version: 1.2.0
 ---
 

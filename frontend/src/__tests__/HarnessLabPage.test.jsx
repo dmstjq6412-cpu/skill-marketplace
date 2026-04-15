@@ -9,6 +9,8 @@ vi.mock('../components/MarkdownViewer', () => ({
 const mockFetchHarnessLogs = vi.fn();
 const mockFetchHarnessLog = vi.fn();
 const mockFetchHarnessBlueprints = vi.fn();
+FetchHarnessBlueprintBySkill = vi.fn();
+
 const mockFetchHarnessBlueprintBySkill = vi.fn();
 const mockFetchHarnessAnalyses = vi.fn();
 const mockFetchHarnessAnalysis = vi.fn();
@@ -16,16 +18,19 @@ const mockFetchHarnessReferences = vi.fn();
 const mockDeleteHarnessReference = vi.fn();
 const mockFetchHarnessEvaluations = vi.fn();
 
+
 vi.mock('../api/client', () => ({
   fetchHarnessLogs: (...args) => mockFetchHarnessLogs(...args),
   fetchHarnessLog: (...args) => mockFetchHarnessLog(...args),
   fetchHarnessBlueprints: (...args) => mockFetchHarnessBlueprints(...args),
+
   fetchHarnessBlueprintBySkill: (...args) => mockFetchHarnessBlueprintBySkill(...args),
   fetchHarnessAnalyses: (...args) => mockFetchHarnessAnalyses(...args),
   fetchHarnessAnalysis: (...args) => mockFetchHarnessAnalysis(...args),
   fetchHarnessReferences: (...args) => mockFetchHarnessReferences(...args),
   deleteHarnessReference: (...args) => mockDeleteHarnessReference(...args),
   fetchHarnessEvaluations: (...args) => mockFetchHarnessEvaluations(...args),
+
 }));
 
 const { default: HarnessLabPage } = await import('../pages/HarnessLabPage');
@@ -102,16 +107,42 @@ const MOCK_ANALYSIS_REPORT = {
   },
 };
 
+const MOCK_ANALYSIS_LIST = [
+  { id: 1, date: '2026-04-13', branch: 'feature/2-reject-rate-tracking', git: { commit_count: 3 } },
+];
+
+const MOCK_ANALYSIS_REPORT = {
+  id: 1,
+  date: '2026-04-13',
+  branch: 'feature/2-reject-rate-tracking',
+  started_at: '2026-04-13T09:00:00Z',
+  ended_at: '2026-04-13T11:00:00Z',
+  git: { commit_count: 3, files_changed: 5, insertions: 80, deletions: 20, commits: [] },
+  pr: null,
+  quality: {
+    security_guard: 'PASS',
+    test_file_ratio: 0.4,
+    tokens: { input: 1000, output: 300, cache_read: 5000, cache_creation: 200, total: 6500 },
+    skill_invocations: { 'code-reviewer': 2, 'security-guard': 1 },
+    reject_rates: {
+      'code-reviewer': { runs: 2, reject: 1, rate: 0.5 },
+      'security-guard': { runs: 1, reject: 0, rate: 0.0 },
+    },
+  },
+};
+
 function seedMocks() {
   mockFetchHarnessLogs.mockResolvedValue({ logs: MOCK_LOGS });
   mockFetchHarnessBlueprints.mockResolvedValue({ skills: MOCK_BLUEPRINTS });
   mockFetchHarnessLog.mockResolvedValue({ date: '2026-04-08', content: MOCK_LOG_CONTENT });
+
   mockFetchHarnessBlueprintBySkill.mockResolvedValue(MOCK_BLUEPRINT_HISTORY);
   mockFetchHarnessAnalyses.mockResolvedValue({ reports: MOCK_ANALYSIS_LIST });
   mockFetchHarnessAnalysis.mockResolvedValue(MOCK_ANALYSIS_REPORT);
   mockFetchHarnessReferences.mockResolvedValue({ references: [] });
   mockDeleteHarnessReference.mockResolvedValue({});
   mockFetchHarnessEvaluations.mockResolvedValue({ evaluations: [] });
+
 }
 
 function renderPage() {
@@ -185,18 +216,45 @@ describe('HarnessLabPage', () => {
 
   it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uD0ED\uC5D0\uC11C \uC2A4\uD82C \uBAA9\uB85D\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
+
     const tabs = screen.getAllByText(KR.blueprintTab);
     fireEvent.click(tabs[tabs.length - 1]);
     expect(await screen.findByText('tdd-guard-claude')).toBeInTheDocument();
     expect(screen.getAllByText('git-guard-claude').length).toBeGreaterThan(0);
+
   });
 
   it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC2A4\uD82C \uD074\uB9AD \uC2DC fetchHarnessBlueprintBySkill\uC774 \uD638\uCD9C\uB41C\uB2E4', async () => {
     renderPage();
+
     const tabs = screen.getAllByText(KR.blueprintTab);
     fireEvent.click(tabs[tabs.length - 1]);
     const skillBtn = await screen.findByRole('button', { name: /tdd-guard-claude/ });
     fireEvent.click(skillBtn);
     await waitFor(() => expect(mockFetchHarnessBlueprintBySkill).toHaveBeenCalledWith('tdd-guard-claude'));
+
+  });
+
+  it('분석 탭에서 리포트 선택 시 reject_rates를 렌더링한다', async () => {
+    renderPage();
+    fireEvent.click(screen.getByText('시범운행'));
+    const reportBtn = await screen.findByText('2026-04-13');
+    fireEvent.click(reportBtn);
+    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith(1));
+    expect(await screen.findByText('REJECT 비율')).toBeInTheDocument();
+    expect(screen.getAllByText('code-reviewer').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('security-guard').length).toBeGreaterThan(0);
+  });
+
+  it('REJECT가 있는 스킬은 비율을 표시하고 REJECT가 없는 스킬은 0%를 표시한다', async () => {
+    renderPage();
+    fireEvent.click(screen.getByText('시범운행'));
+    await screen.findByText('2026-04-13');
+    fireEvent.click(screen.getByText('2026-04-13'));
+    await screen.findByText('REJECT 비율');
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('0%')).toBeInTheDocument();
+    expect(screen.getByText('1/2 REJECT')).toBeInTheDocument();
+    expect(screen.getByText('0/1 REJECT')).toBeInTheDocument();
   });
 });

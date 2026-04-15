@@ -237,6 +237,7 @@ function AnalysisDetail({ report }) {
         {report.quality?.reject_rates && Object.keys(report.quality.reject_rates).length > 0 && (
           <div className="space-y-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">REJECT 비율</p>
+
             <div className="flex flex-wrap gap-2">
               {Object.entries(report.quality.reject_rates).map(([skill, data]) => {
                 const hasReject = data.reject > 0;
@@ -245,11 +246,13 @@ function AnalysisDetail({ report }) {
                     {skill} <span className="font-bold">{Math.round((data.rate ?? 0) * 100)}%</span>
                     <span className="opacity-60 ml-1">({data.reject}/{data.runs} REJECT)</span>
                   </span>
+
                 );
               })}
             </div>
           </div>
         )}
+
 
         {report.quality?.efficiency && (
           <div className="space-y-1.5">
@@ -278,6 +281,7 @@ function AnalysisDetail({ report }) {
             )}
           </div>
         )}
+
 
         {report.pr && (
           <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
