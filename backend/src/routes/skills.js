@@ -89,7 +89,7 @@ router.get('/:id', async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, version, author, description, readme, file_type, downloads, created_at, updated_at
+      `SELECT id, name, version, author, description, readme, file_type, downloads, created_at, updated_at, owner_github_id
        FROM skills WHERE id = $1`,
       [Number(req.params.id)]
     );
@@ -171,9 +171,9 @@ router.post('/', authenticate, upload.single('skill_file'), async (req, res) => 
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO skills (name, version, author, description, readme, filename, file_type, file_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [name, version, trimmedAuthor, description, readme, req.file.originalname, isZip ? 'zip' : 'md', req.file.buffer]
+      `INSERT INTO skills (name, version, author, description, readme, filename, file_type, file_data, owner_github_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [name, version, trimmedAuthor, description, readme, req.file.originalname, isZip ? 'zip' : 'md', req.file.buffer, req.user.github_id]
     );
     const skillId = rows[0].id;
 
@@ -216,8 +216,21 @@ router.post('/:id/download', async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   const pool = getPool();
   try {
-    const { rowCount } = await pool.query(`DELETE FROM skills WHERE id = $1`, [Number(req.params.id)]);
-    if (!rowCount) return res.status(404).json({ error: 'Skill not found' });
+    const { rows } = await pool.query(
+      `SELECT owner_github_id FROM skills WHERE id = $1`,
+      [Number(req.params.id)]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Skill not found' });
+
+    // owner_github_id가 null이면 인증 도입 이전에 업로드된 레거시 스킬이므로
+    // 인증된 사용자 누구나 삭제 가능하도록 허용한다 (하위 호환 정책).
+    // owner_github_id가 설정된 스킬은 소유자 본인만 삭제 가능하다.
+    // Number()로 타입을 통일: pg는 BIGINT를 string으로 반환하고 JWT github_id는 number이므로
+    if (rows[0].owner_github_id !== null && Number(rows[0].owner_github_id) !== Number(req.user.github_id)) {
+      return res.status(403).json({ error: 'Not authorized to delete this skill' });
+    }
+
+    await pool.query(`DELETE FROM skills WHERE id = $1`, [Number(req.params.id)]);
     res.json({ message: 'Skill deleted' });
   } catch (err) {
     console.error(err);

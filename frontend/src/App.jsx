@@ -175,7 +175,7 @@ export default function App() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<SkillListPage />} />
-          <Route path="/skills/:id" element={<SkillDetailPage />} />
+          <Route path="/skills/:id" element={<SkillDetailPage user={user} />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/lab" element={<HarnessLabPage />} />
           <Route path="/auth/callback" element={<AuthCallback onLogin={setUser} />} />

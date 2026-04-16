@@ -456,3 +456,133 @@ describe('POST /:id/download (다운로드 수 증가)', () => {
     expect(res.body.error).toMatch(/database error/i);
   });
 });
+
+// ============================================================
+// DELETE /:id — 소유권 기반 삭제
+// ============================================================
+describe('DELETE /:id (소유권 기반 삭제)', () => {
+  // auth mock: req.user = { github_id: 1, username: 'testuser' }
+  // (파일 상단 vi.mock('../../src/middleware/auth.js') 에서 고정)
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('owner가 자신의 스킬을 삭제하면 200 반환', async () => {
+    // owner_github_id === req.user.github_id (1)
+    mockPool.query.mockImplementation((sql) => {
+      if (sql.includes('FROM skills WHERE id')) {
+        return Promise.resolve({
+          rows: [{ ...MOCK_SKILL, owner_github_id: 1 }],
+        });
+      }
+      if (sql.includes('DELETE FROM skills')) {
+        return Promise.resolve({ rows: [{ id: 1 }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await request(buildApp()).delete('/1');
+
+    expect(res.status).toBe(200);
+  });
+
+  it('다른 사람의 스킬을 삭제 시도하면 403 반환', async () => {
+    // owner_github_id === 99 (req.user.github_id는 1)
+    mockPool.query.mockImplementation((sql) => {
+      if (sql.includes('FROM skills WHERE id')) {
+        return Promise.resolve({
+          rows: [{ ...MOCK_SKILL, owner_github_id: 99 }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await request(buildApp()).delete('/1');
+
+    expect(res.status).toBe(403);
+  });
+
+  it('owner_github_id가 null인 스킬은 누구나 삭제 가능 → 200 반환 (하위 호환)', async () => {
+    // owner_github_id === null → 소유권 검증 없이 삭제 허용
+    mockPool.query.mockImplementation((sql) => {
+      if (sql.includes('FROM skills WHERE id')) {
+        return Promise.resolve({
+          rows: [{ ...MOCK_SKILL, owner_github_id: null }],
+        });
+      }
+      if (sql.includes('DELETE FROM skills')) {
+        return Promise.resolve({ rows: [{ id: 1 }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await request(buildApp()).delete('/1');
+
+    expect(res.status).toBe(200);
+  });
+});
+
+// ============================================================
+// POST / — owner_github_id 저장 검증
+// ============================================================
+describe('POST / — owner_github_id 저장 검증', () => {
+  // auth mock: req.user = { github_id: 1, username: 'testuser' }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPool.connect.mockResolvedValue(mockClient);
+    mockClient.query.mockImplementation((sql) => {
+      if (sql.includes('INSERT INTO skills')) return Promise.resolve({ rows: [{ id: 1 }] });
+      return Promise.resolve({ rows: [] });
+    });
+    mockClient.release.mockResolvedValue(undefined);
+  });
+
+  it('업로드 시 INSERT INTO skills 쿼리에 owner_github_id로 req.user.github_id가 전달됨', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'owned-skill')
+      .field('author', 'testuser')
+      .attach('skill_file', zipBuf, 'owned-skill.zip');
+
+    expect(res.status).toBe(201);
+
+    const insertCall = mockClient.query.mock.calls.find(
+      ([sql]) => sql && sql.includes('INSERT INTO skills')
+    );
+    expect(insertCall).toBeDefined();
+    // req.user.github_id === 1 이 파라미터 배열에 포함되어야 함
+    expect(insertCall[1]).toContain(1);
+  });
+});
+
+// ============================================================
+// GET /:id — 응답에 owner_github_id 포함 검증
+// ============================================================
+describe('GET /:id — owner_github_id 응답 포함 검증', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('스킬 상세 응답에 owner_github_id 필드가 포함됨', async () => {
+    const skillWithOwner = { ...MOCK_SKILL, owner_github_id: 42 };
+
+    mockPool.query.mockImplementation((sql) => {
+      if (sql.includes('FROM skills WHERE id')) {
+        return Promise.resolve({ rows: [skillWithOwner] });
+      }
+      if (sql.includes('FROM skill_files')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await request(buildApp()).get('/1');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('owner_github_id', 42);
+  });
+});
