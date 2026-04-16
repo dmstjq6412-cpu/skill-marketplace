@@ -222,7 +222,11 @@ router.delete('/:id', authenticate, async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Skill not found' });
 
-    if (rows[0].owner_github_id !== null && rows[0].owner_github_id !== req.user.github_id) {
+    // owner_github_id가 null이면 인증 도입 이전에 업로드된 레거시 스킬이므로
+    // 인증된 사용자 누구나 삭제 가능하도록 허용한다 (하위 호환 정책).
+    // owner_github_id가 설정된 스킬은 소유자 본인만 삭제 가능하다.
+    // Number()로 타입을 통일: pg는 BIGINT를 string으로 반환하고 JWT github_id는 number이므로
+    if (rows[0].owner_github_id !== null && Number(rows[0].owner_github_id) !== Number(req.user.github_id)) {
       return res.status(403).json({ error: 'Not authorized to delete this skill' });
     }
 

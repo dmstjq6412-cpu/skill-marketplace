@@ -9,8 +9,6 @@ vi.mock('../components/MarkdownViewer', () => ({
 const mockFetchHarnessLogs = vi.fn();
 const mockFetchHarnessLog = vi.fn();
 const mockFetchHarnessBlueprints = vi.fn();
-FetchHarnessBlueprintBySkill = vi.fn();
-
 const mockFetchHarnessBlueprintBySkill = vi.fn();
 const mockFetchHarnessAnalyses = vi.fn();
 const mockFetchHarnessAnalysis = vi.fn();
@@ -79,35 +77,6 @@ const MOCK_BLUEPRINT_HISTORY = {
 };
 
 const MOCK_ANALYSIS_LIST = [
-  { id: 'report-2026-04-08', date: '2026-04-08', branch: 'feature/3-efficiency', commit_count: 4 },
-];
-
-const MOCK_ANALYSIS_REPORT = {
-  id: 'report-2026-04-08',
-  date: '2026-04-08',
-  branch: 'feature/3-efficiency',
-  started_at: '2026-04-08T09:00:00Z',
-  ended_at: '2026-04-08T17:00:00Z',
-  git: { start_commit: 'abc1234', end_commit: 'def5678', commit_count: 4, commits: [], files_changed: 6, insertions: 120, deletions: 40 },
-  pr: null,
-  quality: {
-    security_guard: 'PASS',
-    test_file_ratio: 0.33,
-    tokens: { input: 1000, output: 300, cache_read: 20000, cache_creation: 500, total: 21800 },
-    skill_invocations: { 'tdd-guard-claude': 3, 'code-reviewer': 2 },
-    reject_rates: {
-      'code-reviewer': { runs: 2, reject: 1, rate: 0.5 },
-    },
-    efficiency: {
-      guard_invocations_per_loc: 0.03,
-      total_invocations_per_loc: 0.04,
-      baseline_avg: 0.02,
-      overhead_flag: true,
-    },
-  },
-};
-
-const MOCK_ANALYSIS_LIST = [
   { id: 1, date: '2026-04-13', branch: 'feature/2-reject-rate-tracking', git: { commit_count: 3 } },
 ];
 
@@ -127,6 +96,12 @@ const MOCK_ANALYSIS_REPORT = {
     reject_rates: {
       'code-reviewer': { runs: 2, reject: 1, rate: 0.5 },
       'security-guard': { runs: 1, reject: 0, rate: 0.0 },
+    },
+    efficiency: {
+      guard_invocations_per_loc: 0.03,
+      total_invocations_per_loc: 0.04,
+      baseline_avg: 0.02,
+      overhead_flag: true,
     },
   },
 };
@@ -196,9 +171,9 @@ describe('HarnessLabPage', () => {
   it('\uC2DC\uBC94\uC6B4\uD589 \uD0ED\uC5D0\uC11C \uB9AC\uD3EC\uD2B8 \uD074\uB9AD \uC2DC efficiency \uC139\uC158\uACFC OVERHEAD \uBC30\uC9C0\uAC00 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
     fireEvent.click(screen.getByText('시범운행'));
-    const reportBtn = await screen.findByRole('button', { name: /2026-04-08/ });
+    const reportBtn = await screen.findByRole('button', { name: /2026-04-13/ });
     fireEvent.click(reportBtn);
-    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith('report-2026-04-08'));
+    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith(1));
     expect(await screen.findByText('OVERHEAD')).toBeInTheDocument();
     expect(screen.getByText('0.03')).toBeInTheDocument();
     expect(screen.getByText('baseline avg: 0.02')).toBeInTheDocument();
@@ -207,9 +182,9 @@ describe('HarnessLabPage', () => {
   it('\uC2DC\uBC94\uC6B4\uD589 \uB9AC\uD3EC\uD2B8\uC5D0\uC11C reject_rates\uAC00 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
     fireEvent.click(screen.getByText('시범운행'));
-    const reportBtn = await screen.findByRole('button', { name: /2026-04-08/ });
+    const reportBtn = await screen.findByRole('button', { name: /2026-04-13/ });
     fireEvent.click(reportBtn);
-    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith('report-2026-04-08'));
+    await waitFor(() => expect(mockFetchHarnessAnalysis).toHaveBeenCalledWith(1));
     expect(await screen.findByText(/1\/2 REJECT/)).toBeInTheDocument();
     expect(screen.getByText(/50%/)).toBeInTheDocument();
   });
@@ -254,7 +229,7 @@ describe('HarnessLabPage', () => {
     await screen.findByText('REJECT 비율');
     expect(screen.getByText('50%')).toBeInTheDocument();
     expect(screen.getByText('0%')).toBeInTheDocument();
-    expect(screen.getByText('1/2 REJECT')).toBeInTheDocument();
-    expect(screen.getByText('0/1 REJECT')).toBeInTheDocument();
+    expect(screen.getByText(/1\/2 REJECT/)).toBeInTheDocument();
+    expect(screen.getByText(/0\/1 REJECT/)).toBeInTheDocument();
   });
 });
