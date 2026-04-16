@@ -20,6 +20,9 @@ CREATE INDEX IF NOT EXISTS idx_skills_created_at ON skills(created_at DESC);
 -- 기존 테이블에 owner_github_id 컬럼이 없으면 추가 (마이그레이션)
 ALTER TABLE skills ADD COLUMN IF NOT EXISTS owner_github_id BIGINT;
 
+-- 인증 도입 이전에 업로드된 레거시 스킬의 소유권을 초기 관리자(dmstjq6412-cpu)로 귀속
+UPDATE skills SET owner_github_id = 268508199 WHERE owner_github_id IS NULL;
+
 CREATE TABLE IF NOT EXISTS skill_files (
     id          SERIAL PRIMARY KEY,
     skill_id    INTEGER NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
