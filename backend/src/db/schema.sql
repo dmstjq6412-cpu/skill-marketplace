@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS skills (
 CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
 CREATE INDEX IF NOT EXISTS idx_skills_created_at ON skills(created_at DESC);
 
+-- 기존 테이블에 owner_github_id 컬럼이 없으면 추가 (마이그레이션)
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS owner_github_id BIGINT;
+
 CREATE TABLE IF NOT EXISTS skill_files (
     id          SERIAL PRIMARY KEY,
     skill_id    INTEGER NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
