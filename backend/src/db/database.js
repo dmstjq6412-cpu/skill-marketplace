@@ -21,7 +21,11 @@ export function getPool() {
 export async function initDb() {
   const pool = getPool();
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-  await pool.query(schema);
+  // pg는 multi-statement를 첫 번째만 실행할 수 있으므로 세미콜론으로 분리해 순차 실행
+  const statements = schema.split(';').map(s => s.trim()).filter(s => s.length > 0);
+  for (const stmt of statements) {
+    await pool.query(stmt);
+  }
   console.log('Database initialized');
 }
 
