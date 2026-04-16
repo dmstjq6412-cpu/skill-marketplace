@@ -7,6 +7,7 @@ import path from 'path';
 import os from 'os';
 import FormData from 'form-data';
 import AdmZip from 'adm-zip';
+import { getAuthToken } from '../lib/auth.js';
 
 const getApiBase = () =>
   process.env.SKILL_MARKETPLACE_API || 'https://skill-marketplace-umzq.onrender.com/api';
@@ -61,6 +62,15 @@ const upload = new Command('upload')
 
     const spinner = ora(`Uploading "${opts.name}" v${opts.version}...`).start();
 
+    let token;
+    try {
+      token = await getAuthToken();
+    } catch (err) {
+      spinner.fail();
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
     try {
       const form = new FormData();
       form.append('name', opts.name);
@@ -70,7 +80,7 @@ const upload = new Command('upload')
       form.append('skill_file', fs.createReadStream(uploadPath), uploadName);
 
       const { data } = await axios.post(`${getApiBase()}/skills`, form, {
-        headers: form.getHeaders(),
+        headers: { ...form.getHeaders(), Authorization: `Bearer ${token}` },
       });
 
       if (tmpZip) fs.unlinkSync(tmpZip);

@@ -24,7 +24,7 @@ function getGradient(name) {
   return ICON_GRADIENTS[Math.abs(hash) % ICON_GRADIENTS.length];
 }
 
-export default function SkillDetailPage() {
+export default function SkillDetailPage({ user }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [skill, setSkill] = useState(null);
@@ -199,6 +199,7 @@ export default function SkillDetailPage() {
                 </svg>
                 Upload Update
               </Link>
+              {user && skill.owner_github_id && Number(user.github_id) === Number(skill.owner_github_id) && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="flex items-center justify-center gap-2 w-full border border-red-200 dark:border-red-500/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 font-medium py-2.5 rounded-xl transition-all duration-150 text-sm"
@@ -208,6 +209,7 @@ export default function SkillDetailPage() {
                 </svg>
                 Delete Skill
               </button>
+              )}
             </div>
 
             {/* CLI hint */}

@@ -89,7 +89,7 @@ router.get('/:id', async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, version, author, description, readme, file_type, downloads, created_at, updated_at
+      `SELECT id, name, version, author, description, readme, file_type, downloads, created_at, updated_at, owner_github_id
        FROM skills WHERE id = $1`,
       [Number(req.params.id)]
     );
@@ -171,9 +171,9 @@ router.post('/', authenticate, upload.single('skill_file'), async (req, res) => 
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO skills (name, version, author, description, readme, filename, file_type, file_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [name, version, trimmedAuthor, description, readme, req.file.originalname, isZip ? 'zip' : 'md', req.file.buffer]
+      `INSERT INTO skills (name, version, author, description, readme, filename, file_type, file_data, owner_github_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [name, version, trimmedAuthor, description, readme, req.file.originalname, isZip ? 'zip' : 'md', req.file.buffer, req.user.github_id]
     );
     const skillId = rows[0].id;
 
@@ -216,8 +216,17 @@ router.post('/:id/download', async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
   const pool = getPool();
   try {
-    const { rowCount } = await pool.query(`DELETE FROM skills WHERE id = $1`, [Number(req.params.id)]);
-    if (!rowCount) return res.status(404).json({ error: 'Skill not found' });
+    const { rows } = await pool.query(
+      `SELECT owner_github_id FROM skills WHERE id = $1`,
+      [Number(req.params.id)]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Skill not found' });
+
+    if (rows[0].owner_github_id !== null && rows[0].owner_github_id !== req.user.github_id) {
+      return res.status(403).json({ error: 'Not authorized to delete this skill' });
+    }
+
+    await pool.query(`DELETE FROM skills WHERE id = $1`, [Number(req.params.id)]);
     res.json({ message: 'Skill deleted' });
   } catch (err) {
     console.error(err);

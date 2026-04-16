@@ -289,18 +289,16 @@
 
           <div style="height:1px; background:#fed7aa; width:100%;"></div>
 
-          <!-- A-2 + B -->
+          <!-- A-2(유닛테스트) + B -->
           <div style="display:flex; gap:10px; width:100%;">
             <div style="flex:1;">
-              <div class="parallel-label">⚡ 병렬 A-2 — code-reviewer 서브에이전트</div>
+              <div class="parallel-label">⚡ 병렬 A-2 — 유닛테스트 서브에이전트</div>
               <div class="va">
-                <div class="node action" style="width:100%; max-width:none;">서브에이전트 spawn<br><span style="font-size:10px; font-weight:400;">project-context + rules/*.yml (언어 감지 → 규칙 단위 필터링) + diff (클리핑 적용)</span></div>
-                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                <div class="node step" style="width:100%; max-width:none; font-size:11px;">보안 취약점 · 치명적 버그<br>팀 전용 규칙 검사</div>
+                <div class="node action" style="width:100%; max-width:none; font-size:11px;">tdd-guard-claude 설치 시 실행<br><span style="font-weight:400;">npx vitest run --reporter=verbose</span></div>
                 <div class="arrow-line"></div><div class="arrow-tip">▼</div>
                 <div style="background:#fff8f0; border-radius:8px; padding:8px; border:1px solid #fdba74; font-size:10px; width:100%;">
                   <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">반환</div>
-                  <div style="color:#555; line-height:1.5;">VERDICT: PASS/REJECT<br>CRITICAL + 수정 제안<br>WARNINGS (참고용)</div>
+                  <div style="color:#555; line-height:1.5;">PASS / FAIL<br>실패한 테스트 목록</div>
                 </div>
               </div>
             </div>
@@ -320,7 +318,7 @@
         <div style="margin-top:16px; display:flex; gap:16px;">
           <div class="va" style="flex:1;">
             <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
-            <div class="node block" style="width:100%; max-width:none;">🚫 커밋 차단<br><span style="font-size:10px; font-weight:400;">정적분석 ERROR / LLM REJECT + 수정 제안 출력</span></div>
+            <div class="node block" style="width:100%; max-width:none;">🚫 커밋 차단<br><span style="font-size:10px; font-weight:400;">정적분석 ERROR / 유닛테스트 FAIL + 수정 제안 출력</span></div>
             <div style="font-size:10px; color:#666; margin-top:6px; text-align:center;">수정 제안 확인 → 코드 수정 후 재시도</div>
           </div>
           <div class="va" style="flex:1;">
@@ -347,12 +345,12 @@
 
     <div style="display:flex; gap:24px; align-items:flex-start;">
       <!-- 메인 흐름 -->
-      <div class="va" style="min-width:180px;">
+      <div class="va" style="min-width:160px;">
         <div class="node start">git push 요청</div>
         <div class="arrow-line"></div><div class="arrow-tip">▼</div>
         <div class="node sync" style="font-size:11px; border:2px solid #6ee7b7;">
           🔍 Step 0: Pre-flight<br>
-          <span style="font-weight:400; font-size:10px;">auth 미들웨어·공개 경로·레이어 수집</span>
+          <span style="font-weight:400; font-size:10px;">auth 미들웨어·공개 경로·레이어 수집<br>세션 캐시 있으면 스킵</span>
         </div>
         <div class="arrow-line"></div><div class="arrow-tip">▼</div>
         <div class="node check" style="font-size:11px;">tdd-guard-claude 설치됨?</div>
@@ -361,42 +359,41 @@
             <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
             <div class="arrow-label">미설치</div>
             <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-            <div class="node ok" style="font-size:10px; min-width:80px;">건너뜀</div>
+            <div class="node ok" style="font-size:10px; min-width:80px;">건너뜀<br>푸시 진행</div>
           </div>
           <div class="va">
             <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
             <div class="arrow-label">설치됨</div>
             <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-            <div class="node step" style="font-size:11px; min-width:140px;">변경 범위 파악<br><span style="font-weight:400; font-size:10px;">git diff origin/브랜치...HEAD<br>frontend / backend 분류</span></div>
+            <div class="node step" style="font-size:11px; min-width:130px;">변경 범위 파악<br><span style="font-weight:400; font-size:10px;">git diff origin/브랜치...HEAD<br>frontend / backend 분류</span></div>
             <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-            <div class="node action" style="font-size:11px; min-width:140px;">전체 테스트 스위트 실행<br><span style="font-weight:400; font-size:10px;">npx vitest run --reporter=verbose</span></div>
+            <div class="node action" style="font-size:11px; min-width:130px;">전체 테스트 스위트 실행<br><span style="font-weight:400; font-size:10px;">npx vitest run --reporter=verbose</span></div>
             <div class="arrow-line"></div><div class="arrow-tip">▼</div>
             <div style="display:flex; gap:10px;">
               <div class="va">
                 <div class="node block" style="font-size:10px; min-width:80px;">🚫 FAIL<br>푸시 차단<br>실패 목록 출력</div>
               </div>
               <div class="va">
-                <div class="arrow-label">PASS</div>
+                <div class="node ok" style="font-size:10px; min-width:80px;">✅ PASS</div>
                 <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                <!-- Step 4: security-guard -->
-                <div class="node action" style="font-size:11px; min-width:140px; border:2px solid #f97316;">
-                  🔒 Step 4: security-guard<br>
-                  <span style="font-weight:400; font-size:10px;">git diff 보안 취약점 탐지<br>[security-context] 전달</span>
+                <!-- code-reviewer + security-guard 병렬 -->
+                <div style="border:2px dashed #fdba74; border-radius:10px; background:#fffbeb; padding:10px; width:200px;">
+                  <div style="font-size:10px; font-weight:700; color:#c2410c; text-align:center; margin-bottom:8px;">⚡ 병렬 코드 검사</div>
+                  <div style="display:flex; gap:6px;">
+                    <div style="flex:1; background:#ede9fe; border-radius:6px; padding:6px; border:1px solid #c4b5fd; font-size:10px; text-align:center;">
+                      <div style="font-weight:700; color:#5b21b6;">code-reviewer</div>
+                      <div style="color:#555; margin-top:2px;">버그·보안·팀 규칙</div>
+                    </div>
+                    <div style="flex:1; background:#fef2f2; border-radius:6px; padding:6px; border:1px solid #fca5a5; font-size:10px; text-align:center;">
+                      <div style="font-weight:700; color:#991b1b;">security-guard</div>
+                      <div style="color:#555; margin-top:2px;">인증·SSRF·CORS</div>
+                    </div>
+                  </div>
                 </div>
                 <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                <div style="display:flex; gap:10px;">
-                  <div class="va">
-                    <div class="node block" style="font-size:10px; min-width:80px;">🔒 REJECT<br>푸시 차단<br>CRITICAL 출력</div>
-                  </div>
-                  <div class="va">
-                    <div class="arrow-label">PASS</div>
-                    <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                    <div class="node sync" style="font-size:10px; min-width:110px;">📄 .security-cleared<br>생성</div>
-                    <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                    <div class="node ok" style="font-size:10px; min-width:110px;">✅ git push 실행</div>
-                    <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                    <div class="node sync" style="font-size:10px; min-width:110px;">🗑 .security-cleared<br>삭제</div>
-                  </div>
+                <div style="display:flex; gap:6px; width:200px;">
+                  <div class="node block" style="flex:1; font-size:10px; min-width:0;">🚫 REJECT<br>푸시 차단</div>
+                  <div class="node ok" style="flex:1; font-size:10px; min-width:0;">✅ PASS<br>푸시 진행</div>
                 </div>
               </div>
             </div>
@@ -413,25 +410,19 @@
             푸시는 팀과 코드를 공유하기 직전 — "내 변경이 전체 시스템을 깨뜨리지 않는가"를 검증하기에 가장 자연스러운 게이트.
           </div>
         </div>
-        <div style="background:#fff7ed; border-radius:10px; padding:14px; border:1px solid #fdba74;">
-          <div style="font-size:12px; font-weight:700; color:#c2410c; margin-bottom:8px;">🔒 security-guard 전달 컨텍스트</div>
+        <div style="background:#f0fdf4; border-radius:10px; padding:14px; border:1px solid #86efac;">
+          <div style="font-size:12px; font-weight:700; color:#166534; margin-bottom:8px;">📋 Pre-flight → code-reviewer + security-guard 전달</div>
           <div style="font-family:monospace; font-size:10px; background:#fff; border-radius:6px; padding:10px; line-height:1.8; color:#333;">
-            [security-context]<br>
+            [project-context]<br>
+            tech_stack: typescript, express, react<br>
+            top_dirs: backend, frontend, scripts<br>
+            source_dir: src<br>
+            layer_dirs: services/, controllers/, components/<br>
             auth_middlewares: authenticate, checkToken<br>
             public_routes: /health, /api/auth/login<br>
-            layer_dirs: services/, controllers/, components/<br>
-            <br>
-            [git diff]<br>
-            &lt;origin/브랜치...HEAD diff&gt;
+            test_framework: vitest
           </div>
-          <div style="font-size:10px; color:#c2410c; margin-top:6px;">인증 판단에 필요한 3개 필드만 전달 — 토큰 절약</div>
-        </div>
-        <div style="background:#fef3c7; border-radius:10px; padding:14px; border:1px solid #fcd34d;">
-          <div style="font-size:12px; font-weight:700; color:#92400e; margin-bottom:8px;">🪝 PreToolUse 훅 (이중 게이트)</div>
-          <div style="font-size:11px; color:#555; line-height:1.6;">
-            <code style="background:#fff; padding:2px 5px; border-radius:3px; font-size:10px;">check-security.sh</code>가 <code style="background:#fff; padding:2px 5px; border-radius:3px; font-size:10px;">Bash</code> 도구 실행 전 감지.<br>
-            <code style="background:#fff; padding:2px 5px; border-radius:3px; font-size:10px;">.security-cleared</code> 없으면 exit 2로 강제 차단.
-          </div>
+          <div style="font-size:10px; color:#555; margin-top:6px;">security-guard가 이 컨텍스트로 인증 판단 정확도 향상</div>
         </div>
       </div>
     </div>

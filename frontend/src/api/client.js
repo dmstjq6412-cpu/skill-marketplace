@@ -67,6 +67,7 @@ export const loginWithCliToken = (token) =>
 
 export const getGithubLoginUrl = () => {
   const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-  const redirectUri = `${import.meta.env.VITE_API_URL || ''}/api/auth/github/callback`;
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const redirectUri = `${apiBase}/api/auth/github/callback`;
   return `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=read%3Auser&redirect_uri=${encodeURIComponent(redirectUri)}`;
 };
