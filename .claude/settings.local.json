@@ -64,7 +64,19 @@
       "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-1-mariadb-member/without_skill/outputs\")",
       "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-2-postgresql-order/with_skill/outputs\")",
       "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-2-postgresql-order/without_skill/outputs\")",
-      "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-3-no-db-product/with_skill/outputs\")"
+      "Bash(mkdir -p \"/c/Users/임은섭/.claude/skills/table-convention-workspace/iteration-2/eval-3-no-db-product/with_skill/outputs\")",
+      "Bash(cp /c/Users/임은섭/.claude/skills/harness-setup/hooks/check-branch.sh /c/Users/임은섭/SKILL_MARKETPLACE/.claude/hooks/check-branch.sh)",
+      "Bash(cp /c/Users/임은섭/.claude/skills/harness-setup/hooks/check-file-size.sh /c/Users/임은섭/SKILL_MARKETPLACE/.claude/hooks/check-file-size.sh)",
+      "Bash(cp /c/Users/임은섭/.claude/skills/git-guard-claude/hooks/check-security.sh /c/Users/임은섭/.claude/skills/harness-setup/hooks/check-security.sh)",
+      "Bash(mkdir -p /c/Users/임은섭/.claude/skills/harness-setup/agents)",
+      "Bash(cp /c/Users/임은섭/.claude/skills/git-guard-claude/agents/static-analyzer.md /c/Users/임은섭/.claude/skills/harness-setup/agents/)",
+      "Bash(cp /c/Users/임은섭/.claude/skills/git-guard-claude/agents/code-reviewer.md /c/Users/임은섭/.claude/skills/harness-setup/agents/)",
+      "Bash(git -C /c/Users/임은섭/.claude/skills/git-guard-claude log --oneline -3)",
+      "Bash(skill-marketplace check *)",
+      "Bash(npx skill-marketplace *)",
+      "Bash(git add *)",
+      "Bash(git config *)",
+      "Bash(git diff *)"
     ]
   },
   "hooks": {
@@ -75,6 +87,18 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/check-branch.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/check-file-size.sh\"",
             "timeout": 10
           }
         ]
