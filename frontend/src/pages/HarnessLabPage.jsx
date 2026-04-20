@@ -488,7 +488,7 @@ export default function HarnessLabPage() {
               <div className="flex gap-2 flex-wrap">
                 <button type="button" className="px-3 py-2 rounded-lg bg-violet-600 text-white text-sm" onClick={() => handleCopy(prompt, TEXT.copiedNextPrompt)}>{TEXT.copyPrompt}</button>
                 <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => handleCopy(logContent, TEXT.copiedWrapup)}>{TEXT.copyWrapup}</button>
-                <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('blueprint'); if (selectedDate) openBlueprint(selectedDate); }}>{TEXT.openBlueprint}</button>
+                <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => setTab('blueprint')}>{TEXT.openBlueprint}</button>
                 {blueprintViz && <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('viz'); setActiveViz(blueprintViz); }}>{TEXT.openViz}</button>}
               </div>
             </div>
@@ -723,11 +723,28 @@ export default function HarnessLabPage() {
                         <div className="space-y-1 flex-1">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{TEXT.gapsLabel}</p>
                           <ul className="space-y-0.5">
-                            {ev.gaps.map((g, i) => (
-                              <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex gap-1.5">
-                                <span className="text-slate-300 shrink-0">·</span>{g}
-                              </li>
-                            ))}
+                            {ev.gaps.map((g, i) => {
+                              const dec = (ev.gap_decisions || []).find(d => d.index === i && d.type === 'gap');
+                              const decStyle = dec?.decision === 'adopt'
+                                ? 'bg-green-100 text-green-700 border-green-200'
+                                : dec?.decision === 'skip'
+                                ? 'bg-gray-100 text-gray-500 border-gray-200'
+                                : dec?.decision === 'pending'
+                                ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                : null;
+                              return (
+                                <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex gap-1.5 items-start">
+                                  <span className="text-slate-300 shrink-0">·</span>
+                                  <span className="flex-1">{g}</span>
+                                  {decStyle && (
+                                    <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${decStyle}`}>
+                                      {dec.decision}
+                                      {dec.issue_number && <span className="ml-1 opacity-70">#{dec.issue_number}</span>}
+                                    </span>
+                                  )}
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       )}

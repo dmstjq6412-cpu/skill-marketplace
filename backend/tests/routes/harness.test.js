@@ -320,3 +320,49 @@ describe('GET /evaluations', () => {
     expect(res.body.error).toBe('Failed to read evaluations');
   });
 });
+
+// ============================================================
+// PATCH /evaluations/:id — gap_decisions 업데이트
+// ============================================================
+describe('PATCH /evaluations/:id', () => {
+  beforeEach(() => mockPool.query.mockReset());
+
+  const GAP_DECISIONS = [
+    { index: 0, type: 'gap', decision: 'resolve', issue_number: 42 },
+    { index: 1, type: 'suggestion', decision: 'skip' },
+  ];
+
+  it('gap_decisions 업데이트 성공 → 200 + { id, gap_decisions }', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [{ id: 1, gap_decisions: GAP_DECISIONS }],
+    });
+    const res = await request(buildApp())
+      .patch('/evaluations/1')
+      .send({ gap_decisions: GAP_DECISIONS });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: 1, gap_decisions: GAP_DECISIONS });
+  });
+
+  it('존재하지 않는 id → 404', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp())
+      .patch('/evaluations/9999')
+      .send({ gap_decisions: GAP_DECISIONS });
+    expect(res.status).toBe(404);
+  });
+
+  it('gap_decisions 누락 → 400', async () => {
+    const res = await request(buildApp())
+      .patch('/evaluations/1')
+      .send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('DB 에러 → 500', async () => {
+    mockPool.query.mockRejectedValueOnce(new Error('DB connection failed'));
+    const res = await request(buildApp())
+      .patch('/evaluations/1')
+      .send({ gap_decisions: GAP_DECISIONS });
+    expect(res.status).toBe(500);
+  });
+});

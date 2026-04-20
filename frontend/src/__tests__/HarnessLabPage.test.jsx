@@ -47,7 +47,22 @@ const KR = {
 };
 
 const MOCK_EVALUATIONS = [
-  { id: 1, skill: 'tdd-guard-claude', date: '2026-04-20', article_title: 'TDD Best Practices', article_url: 'https://example.com/tdd', gaps: ['계획 승인 단계 없음'], suggestions: ['계획 단계 추가'], verdict: 'partial', created_at: '2026-04-20T00:00:00Z' },
+  {
+    id: 1,
+    skill: 'tdd-guard-claude',
+    date: '2026-04-20',
+    article_title: 'TDD Best Practices',
+    article_url: 'https://example.com/tdd',
+    gaps: ['계획 승인 단계 없음', 'Error handling 미흡', '문서화 부족'],
+    suggestions: ['계획 단계 추가'],
+    verdict: 'partial',
+    created_at: '2026-04-20T00:00:00Z',
+    gap_decisions: [
+      { index: 0, type: 'gap', decision: 'adopt', issue_number: 42 },
+      { index: 1, type: 'gap', decision: 'skip' },
+      { index: 2, type: 'gap', decision: 'pending' },
+    ],
+  },
   { id: 2, skill: 'git-guard-claude', date: '2026-04-19', article_title: 'Git Workflow', article_url: 'https://example.com/git', gaps: [], suggestions: [], verdict: 'pass', created_at: '2026-04-19T00:00:00Z' },
 ];
 
@@ -269,6 +284,33 @@ describe('HarnessLabPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'tdd-guard-claude' }));
       expect(await screen.findByText('TDD Best Practices')).toBeInTheDocument();
       expect(screen.queryByText('Git Workflow')).not.toBeInTheDocument();
+    });
+
+    it('adopt 결정이 있는 gap은 초록 뱃지(adopt)를 렌더링한다', async () => {
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('TDD Best Practices')).toBeInTheDocument();
+      const adoptBadges = screen.getAllByText('adopt');
+      expect(adoptBadges.length).toBeGreaterThan(0);
+      expect(adoptBadges[0]).toHaveClass('bg-green-100');
+    });
+
+    it('skip 결정이 있는 gap은 회색 뱃지(skip)를 렌더링한다', async () => {
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('TDD Best Practices')).toBeInTheDocument();
+      const skipBadges = screen.getAllByText('skip');
+      expect(skipBadges.length).toBeGreaterThan(0);
+      expect(skipBadges[0]).toHaveClass('bg-gray-100');
+    });
+
+    it('pending 결정이 있는 gap은 노랑 뱃지(pending)를 렌더링한다', async () => {
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('TDD Best Practices')).toBeInTheDocument();
+      const pendingBadges = screen.getAllByText('pending');
+      expect(pendingBadges.length).toBeGreaterThan(0);
+      expect(pendingBadges[0]).toHaveClass('bg-yellow-100');
     });
   });
 });
