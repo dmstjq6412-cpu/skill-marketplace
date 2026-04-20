@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations } from '../api/client';
+import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -47,6 +47,12 @@ const TEXT = {
   referencesTab: '\uCC38\uACE0\uC790\uB8CC',
   noReferences: '\uC800\uC7A5\uB41C \uCC38\uACE0\uC790\uB8CC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessReference: '`/harness-reference` \uB85C \uB9C1\uD06C\uB97C \uC800\uC7A5\uD558\uC138\uC694.',
+  evaluationsTab: '평가 이력',
+  noEvaluations: '저장된 평가 이력이 없습니다.',
+  runHarnessEvaluation: '`/harness-reference`로 아티클을 저장하면 평가가 쌓입니다.',
+  allSkills: '전체',
+  gapsLabel: '갭',
+  suggestionsLabel: '제안',
   allTags: '\uC804\uCCB4',
   logbook: '\uC138\uC158 \uB85C\uADF8\uBD81',
   noWrapups: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uB370\uC77C\uB9AC wrap-up\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
@@ -367,12 +373,15 @@ export default function HarnessLabPage() {
   const [analysisDetail, setAnalysisDetail] = useState(null);
   const [references, setReferences] = useState([]);
   const [activeTag, setActiveTag] = useState(null);
+  const [allEvaluations, setAllEvaluations] = useState([]);
+  const [activeEvalSkill, setActiveEvalSkill] = useState(null);
 
   useEffect(() => {
     fetchHarnessLogs().then(data => setLogs(data.logs || []));
     fetchHarnessBlueprints().then(data => setSkillList(data.skills || []));
     fetchHarnessAnalyses().then(data => setAnalysisList(data.reports || []));
     fetchHarnessReferences().then(data => setReferences(data.references || []));
+    fetchAllHarnessEvaluations().then(data => setAllEvaluations(data.evaluations || []));
   }, []);
 
   const todayLog = logs[0];
@@ -460,8 +469,8 @@ export default function HarnessLabPage() {
         </section>
       </div>
 
-      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit">
-        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab]].map(([key, label]) => (
+      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit flex-wrap">
+        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab], ['evaluations', TEXT.evaluationsTab]].map(([key, label]) => (
           <button key={key} type="button" onClick={() => { setTab(key); setCopyStatus(''); if (key !== 'viz') setActiveViz(null); }} className={`px-4 py-2 text-sm rounded-lg ${tab === key ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
         ))}
       </div>
@@ -667,6 +676,75 @@ export default function HarnessLabPage() {
                       </div>
                     );
                   })}
+                </div>
+            }
+          </div>
+        );
+      })()}
+
+      {tab === 'evaluations' && (() => {
+        const skillNames = [...new Set(allEvaluations.map(e => e.skill))].sort();
+        const filtered = activeEvalSkill ? allEvaluations.filter(e => e.skill === activeEvalSkill) : allEvaluations;
+        const verdictStyle = v => v === 'pass' ? 'bg-green-50 border-green-200 text-green-700' : v === 'needs-work' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-amber-50 border-amber-200 text-amber-700';
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2 items-center">
+              <button type="button" onClick={() => setActiveEvalSkill(null)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!activeEvalSkill ? 'bg-violet-600 text-white border-violet-600' : 'border-slate-200 text-slate-500 hover:border-violet-300'}`}>
+                {TEXT.allSkills}
+              </button>
+              {skillNames.map(name => (
+                <button key={name} type="button" onClick={() => setActiveEvalSkill(name === activeEvalSkill ? null : name)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-mono font-semibold border transition-colors ${activeEvalSkill === name ? 'bg-violet-600 text-white border-violet-600' : 'border-slate-200 text-slate-500 hover:border-violet-300'}`}>
+                  {name}
+                </button>
+              ))}
+            </div>
+            {filtered.length === 0
+              ? <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-400">
+                  <p>{TEXT.noEvaluations}</p>
+                  <p className="text-xs mt-1 font-mono">{TEXT.runHarnessEvaluation}</p>
+                </div>
+              : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {filtered.map(ev => (
+                    <div key={ev.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-4 space-y-3 flex flex-col">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full border font-mono font-semibold ${verdictStyle(ev.verdict)}`}>{ev.verdict}</span>
+                        <span className="text-[10px] font-mono text-slate-400">{ev.date}</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 font-mono">{ev.skill}</p>
+                        <a href={ev.article_url} target="_blank" rel="noopener noreferrer"
+                          className="text-sm font-semibold text-slate-900 dark:text-white hover:text-violet-600 dark:hover:text-violet-400 transition-colors leading-snug block">
+                          {ev.article_title}
+                        </a>
+                      </div>
+                      {ev.gaps?.length > 0 && (
+                        <div className="space-y-1 flex-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{TEXT.gapsLabel}</p>
+                          <ul className="space-y-0.5">
+                            {ev.gaps.map((g, i) => (
+                              <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex gap-1.5">
+                                <span className="text-slate-300 shrink-0">·</span>{g}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {ev.suggestions?.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{TEXT.suggestionsLabel}</p>
+                          <ul className="space-y-0.5">
+                            {ev.suggestions.map((s, i) => (
+                              <li key={i} className="text-xs text-violet-600 dark:text-violet-400 flex gap-1.5">
+                                <span className="shrink-0">→</span>{s}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
             }
           </div>

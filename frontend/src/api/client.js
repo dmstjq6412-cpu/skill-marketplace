@@ -56,6 +56,9 @@ export const deleteHarnessReference = (id) =>
 export const fetchHarnessEvaluations = (skill) =>
   api.get(`/harness/evaluations/${skill}`).then(r => r.data);
 
+export const fetchAllHarnessEvaluations = (skill) =>
+  api.get('/harness/evaluations', { params: skill ? { skill } : {} }).then(r => r.data);
+
 export const fetchMe = () =>
   api.get('/auth/me').then(r => r.data);
 

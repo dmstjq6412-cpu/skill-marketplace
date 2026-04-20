@@ -274,6 +274,28 @@ router.post('/references', async (req, res) => {
   }
 });
 
+// GET /api/harness/evaluations — 전체 평가 이력 (skill 쿼리 파라미터로 필터 가능)
+router.get('/evaluations', async (req, res) => {
+  try {
+    const { skill } = req.query;
+    const pool = getPool();
+    const params = [];
+    let where = '';
+    if (skill) {
+      where = ' WHERE skill = $1';
+      params.push(skill);
+    }
+    const { rows } = await pool.query(
+      `SELECT id, skill, date, article_title, article_url, gaps, suggestions, verdict, created_at FROM harness_evaluations${where} ORDER BY date DESC`,
+      params
+    );
+    res.json({ evaluations: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read evaluations' });
+  }
+});
+
 // GET /api/harness/evaluations/:skill
 router.get('/evaluations/:skill', async (req, res) => {
   try {
