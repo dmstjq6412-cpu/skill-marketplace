@@ -15,6 +15,7 @@ const mockFetchHarnessAnalysis = vi.fn();
 const mockFetchHarnessReferences = vi.fn();
 const mockDeleteHarnessReference = vi.fn();
 const mockFetchHarnessEvaluations = vi.fn();
+const mockFetchAllHarnessEvaluations = vi.fn();
 
 
 vi.mock('../api/client', () => ({
@@ -28,6 +29,7 @@ vi.mock('../api/client', () => ({
   fetchHarnessReferences: (...args) => mockFetchHarnessReferences(...args),
   deleteHarnessReference: (...args) => mockDeleteHarnessReference(...args),
   fetchHarnessEvaluations: (...args) => mockFetchHarnessEvaluations(...args),
+  fetchAllHarnessEvaluations: (...args) => mockFetchAllHarnessEvaluations(...args),
 
 }));
 
@@ -43,6 +45,11 @@ const KR = {
   runHarnessLog: '`/harness-log`\uB97C \uC2E4\uD589\uD574 \uCCAB \uAE30\uB85D\uC744 \uC800\uC7A5\uD558\uC138\uC694.',
   blueprintTab: '\uBE14\uB8E8\uD504\uB9B0\uD2B8',
 };
+
+const MOCK_EVALUATIONS = [
+  { id: 1, skill: 'tdd-guard-claude', date: '2026-04-20', article_title: 'TDD Best Practices', article_url: 'https://example.com/tdd', gaps: ['계획 승인 단계 없음'], suggestions: ['계획 단계 추가'], verdict: 'partial', created_at: '2026-04-20T00:00:00Z' },
+  { id: 2, skill: 'git-guard-claude', date: '2026-04-19', article_title: 'Git Workflow', article_url: 'https://example.com/git', gaps: [], suggestions: [], verdict: 'pass', created_at: '2026-04-19T00:00:00Z' },
+];
 
 const MOCK_LOGS = [
   { date: '2026-04-08', summary: 'Implemented harness-lab handoff flow' },
@@ -117,6 +124,7 @@ function seedMocks() {
   mockFetchHarnessReferences.mockResolvedValue({ references: [] });
   mockDeleteHarnessReference.mockResolvedValue({});
   mockFetchHarnessEvaluations.mockResolvedValue({ evaluations: [] });
+  mockFetchAllHarnessEvaluations.mockResolvedValue({ evaluations: MOCK_EVALUATIONS });
 
 }
 
@@ -231,5 +239,36 @@ describe('HarnessLabPage', () => {
     expect(screen.getByText('0%')).toBeInTheDocument();
     expect(screen.getByText(/1\/2 REJECT/)).toBeInTheDocument();
     expect(screen.getByText(/0\/1 REJECT/)).toBeInTheDocument();
+  });
+
+  describe('평가 이력 탭', () => {
+    it('평가 이력 탭이 렌더링된다', async () => {
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText(MOCK_EVALUATIONS[0].article_title)).toBeInTheDocument();
+    });
+
+    it('스킬 필터 버튼이 렌더링된다', async () => {
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByRole('button', { name: 'tdd-guard-claude' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'git-guard-claude' })).toBeInTheDocument();
+    });
+
+    it('평가 없으면 빈 상태 메시지가 표시된다', async () => {
+      mockFetchAllHarnessEvaluations.mockResolvedValue({ evaluations: [] });
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('저장된 평가 이력이 없습니다.')).toBeInTheDocument();
+    });
+
+    it('스킬 필터 클릭 시 해당 스킬만 표시된다', async () => {
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      await screen.findByRole('button', { name: 'tdd-guard-claude' });
+      fireEvent.click(screen.getByRole('button', { name: 'tdd-guard-claude' }));
+      expect(await screen.findByText('TDD Best Practices')).toBeInTheDocument();
+      expect(screen.queryByText('Git Workflow')).not.toBeInTheDocument();
+    });
   });
 });

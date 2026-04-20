@@ -265,3 +265,58 @@ describe('GET /references', () => {
     expect(params[0]).toBe('["ai"]');
   });
 });
+
+// ============================================================
+// GET /evaluations — 전체 평가 이력 반환
+// ============================================================
+describe('GET /evaluations', () => {
+  beforeEach(() => mockPool.query.mockReset());
+
+  it('전체 평가 목록을 반환', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 1,
+          skill: 'tdd-guard-claude',
+          date: '2026-04-10',
+          article_title: 'Code Agent Orchestra',
+          article_url: 'https://addyosmani.com/blog/code-agent-orchestra/',
+          gaps: ['계획 승인 단계 없음'],
+          suggestions: [],
+          verdict: 'partial',
+          created_at: '2026-04-10T00:00:00Z',
+        },
+      ],
+    });
+    const res = await request(buildApp()).get('/evaluations');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.evaluations)).toBe(true);
+    expect(res.body.evaluations[0]).toMatchObject({
+      skill: 'tdd-guard-claude',
+      verdict: 'partial',
+    });
+  });
+
+  it('평가 없으면 빈 배열 반환', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).get('/evaluations');
+    expect(res.status).toBe(200);
+    expect(res.body.evaluations).toEqual([]);
+  });
+
+  it('skill 필터 적용 시 쿼리에 파라미터가 전달됨', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).get('/evaluations?skill=tdd-guard-claude');
+    expect(res.status).toBe(200);
+    const [sql, params] = mockPool.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE/);
+    expect(params[0]).toBe('tdd-guard-claude');
+  });
+
+  it('DB 오류 시 500 반환', async () => {
+    mockPool.query.mockRejectedValueOnce(new Error('DB connection failed'));
+    const res = await request(buildApp()).get('/evaluations');
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to read evaluations');
+  });
+});
