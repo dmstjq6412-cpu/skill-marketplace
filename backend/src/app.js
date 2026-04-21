@@ -21,7 +21,7 @@ app.use('/api/skills', downloadRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/harness', harnessRouter);
 
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
   try {
     await initDbWithRetry();
   } catch (err) {
