@@ -723,6 +723,7 @@ export default function HarnessLabPage() {
                         <div className="space-y-1 flex-1">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{TEXT.gapsLabel}</p>
                           <ul className="space-y-0.5">
+
                             {ev.gaps.map((g, i) => {
                               const dec = (ev.gap_decisions || []).find(d => d.index === i && d.type === 'gap');
                               const decStyle = dec?.decision === 'adopt'
@@ -745,6 +746,7 @@ export default function HarnessLabPage() {
                                 </li>
                               );
                             })}
+
                           </ul>
                         </div>
                       )}

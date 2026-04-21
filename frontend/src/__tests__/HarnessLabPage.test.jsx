@@ -47,6 +47,7 @@ const KR = {
 };
 
 const MOCK_EVALUATIONS = [
+
   {
     id: 1,
     skill: 'tdd-guard-claude',
@@ -63,6 +64,7 @@ const MOCK_EVALUATIONS = [
       { index: 2, type: 'gap', decision: 'pending' },
     ],
   },
+
   { id: 2, skill: 'git-guard-claude', date: '2026-04-19', article_title: 'Git Workflow', article_url: 'https://example.com/git', gaps: [], suggestions: [], verdict: 'pass', created_at: '2026-04-19T00:00:00Z' },
 ];
 
@@ -312,5 +314,7 @@ describe('HarnessLabPage', () => {
       expect(pendingBadges.length).toBeGreaterThan(0);
       expect(pendingBadges[0]).toHaveClass('bg-yellow-100');
     });
+
+
   });
 });

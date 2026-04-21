@@ -59,8 +59,10 @@ export const fetchHarnessEvaluations = (skill) =>
 export const fetchAllHarnessEvaluations = (skill) =>
   api.get('/harness/evaluations', { params: skill ? { skill } : {} }).then(r => r.data);
 
+
 export const patchHarnessEvaluation = (id, gap_decisions) =>
   api.patch(`/harness/evaluations/${id}`, { gap_decisions }).then(r => r.data);
+
 
 export const fetchMe = () =>
   api.get('/auth/me').then(r => r.data);
