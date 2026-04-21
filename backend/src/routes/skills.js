@@ -145,7 +145,7 @@ router.post('/', authenticate, upload.single('skill_file'), async (req, res) => 
   }
 
   const isZip = req.file.originalname.endsWith('.zip');
-  let readme = '';
+  let readme;
 
   let refFiles = []; // { path, content }
 
