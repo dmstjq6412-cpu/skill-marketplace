@@ -10,7 +10,9 @@ export function authenticate(req, res, next) {
   }
   const token = header.slice(7);
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.github_id != null) decoded.github_id = String(decoded.github_id);
+    req.user = decoded;
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
