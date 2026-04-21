@@ -97,9 +97,13 @@ CREATE TABLE IF NOT EXISTS harness_evaluations (
     gaps            JSONB NOT NULL DEFAULT '[]',
     suggestions     JSONB NOT NULL DEFAULT '[]',
     verdict         TEXT NOT NULL DEFAULT 'partial',
+    gap_decisions   JSONB NOT NULL DEFAULT '[]',
     resolved_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_harness_evaluations_skill ON harness_evaluations(skill);
 CREATE INDEX IF NOT EXISTS idx_harness_evaluations_date ON harness_evaluations(date DESC);
+
+-- 기존 테이블에 gap_decisions 컬럼이 없으면 추가 (마이그레이션)
+ALTER TABLE harness_evaluations ADD COLUMN IF NOT EXISTS gap_decisions JSONB NOT NULL DEFAULT '[]';

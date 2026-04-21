@@ -332,6 +332,27 @@ router.post('/evaluations', async (req, res) => {
   }
 });
 
+// PATCH /api/harness/evaluations/:id — gap_decisions 업데이트
+router.patch('/evaluations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { gap_decisions } = req.body;
+    if (!gap_decisions) {
+      return res.status(400).json({ error: 'gap_decisions is required' });
+    }
+    const pool = getPool();
+    const { rows } = await pool.query(
+      'UPDATE harness_evaluations SET gap_decisions = $1 WHERE id = $2 RETURNING id, gap_decisions',
+      [JSON.stringify(gap_decisions), id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Evaluation not found' });
+    res.json({ id: rows[0].id, gap_decisions: rows[0].gap_decisions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update evaluation' });
+  }
+});
+
 // GET /api/harness/reviews/:skill
 router.get('/reviews/:skill', async (req, res) => {
   try {

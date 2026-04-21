@@ -113,7 +113,7 @@
 <div class="page">
 
   <h1>Git Convention — 전체 동작 흐름</h1>
-  <p class="subtitle">팀 온보딩용 · Claude 자동 적용 스킬 · git-guard v1.7</p>
+  <p class="subtitle">팀 온보딩용 · Claude 자동 적용 스킬 · git-guard v2.7.0</p>
 
   <!-- 오버뷰 -->
   <div class="section">
@@ -129,7 +129,7 @@
       <div class="overview-card oc2">
         <div class="icon">💾</div>
         <div class="title">커밋</div>
-        <div class="desc">Summary 검증<br>정적분석 + LLM 리뷰 병렬<br>자동 메세지 생성</div>
+        <div class="desc">Summary 검증<br>Bash ESLint + 스코프 유닛테스트<br>자동 메세지 생성</div>
       </div>
       <div class="overview-card oc3">
         <div class="icon">📬</div>
@@ -234,7 +234,7 @@
   <!-- 2. 커밋 -->
   <div class="section">
     <div class="section-title" style="border-color:#c4b5fd; color:#5b21b6;">
-      <span class="num" style="background:#5b21b6;">2</span> 커밋 (서브에이전트 병렬 검증)
+      <span class="num" style="background:#5b21b6;">2</span> 커밋 (Bash 직접 실행 병렬 검증)
     </div>
 
     <div style="display:flex; gap:24px; align-items:flex-start;">
@@ -259,7 +259,9 @@
           ≥500줄 → 추가라인만 추출<br>max 300줄 클리핑
         </div>
         <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-        <div class="node para" style="text-align:center; font-size:11px; padding:8px;">⚡ 병렬 처리 시작</div>
+        <div class="node check" style="font-size:11px;">소스 파일 분류<br><span style="font-weight:400; font-size:10px;">소스 / 테스트 / 비코드</span></div>
+        <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+        <div class="node para" style="text-align:center; font-size:11px; padding:8px;">⚡ Bash 병렬 처리 시작</div>
       </div>
 
       <div class="arrow" style="align-self:center; margin-top:80px;">→</div>
@@ -268,37 +270,47 @@
       <div style="flex:1;">
         <div class="parallel-box" style="flex-direction:column; gap:10px;">
 
-          <!-- A-1 정적 분석 서브에이전트 -->
+          <!-- A-1 Bash ESLint -->
           <div style="width:100%;">
-            <div class="parallel-label">⚡ 병렬 A-1 — static-analyzer 서브에이전트</div>
-            <div class="node action" style="width:100%; max-width:none; font-size:11px;">
-              서브에이전트 spawn<br>
-              <span style="font-weight:400;">static-analysis.config.yml 읽기 → enabled 도구 병렬 실행 → 결과 취합</span>
-            </div>
-            <div style="display:flex; gap:8px; margin-top:8px;">
-              <div style="flex:1; background:#fff; border-radius:8px; padding:8px; border:1px solid #fdba74; font-size:10px; text-align:center;">
-                <div style="font-weight:700; color:#c2410c;">ESLint · SonarQube</div>
-                <div style="color:#888; margin-top:2px;">+ config.yml에 추가만</div>
+            <div class="parallel-label">⚡ 병렬 A-1 — Bash ESLint 직접 실행 (LLM 판단 없음)</div>
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1.2;">
+                <div class="node step" style="width:100%; max-width:none; font-size:11px;">
+                  Pre-check: eslint 설정 파일 존재?<br>
+                  <span style="font-weight:400; font-size:10px;">없으면 A-1 스킵</span>
+                </div>
+                <div style="margin-top:6px;" class="node step" style="width:100%; max-width:none; font-size:11px;">
+                  <div style="font-size:11px; font-weight:600;">npx eslint $STAGED_SRC<br>--format=compact</div>
+                  <div style="font-size:10px; font-weight:400; margin-top:2px; color:#555;">staged 소스 파일만 대상</div>
+                </div>
               </div>
               <div style="flex:1; background:#fff8f0; border-radius:8px; padding:8px; border:1px solid #fdba74; font-size:10px;">
-                <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">반환</div>
-                <div style="color:#555; line-height:1.5;">VERDICT: PASS/REJECT<br>ERRORS + 수정 제안<br>WARNINGS (참고용)</div>
+                <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">판정</div>
+                <div style="color:#555; line-height:1.6;">: error → ERRORS<br>: warning → WARNINGS</div>
               </div>
             </div>
           </div>
 
           <div style="height:1px; background:#fed7aa; width:100%;"></div>
 
-          <!-- A-2(유닛테스트) + B -->
+          <!-- A-2(스코프 유닛테스트) + B -->
           <div style="display:flex; gap:10px; width:100%;">
             <div style="flex:1;">
-              <div class="parallel-label">⚡ 병렬 A-2 — 유닛테스트 서브에이전트</div>
+              <div class="parallel-label">⚡ 병렬 A-2 — Bash 스코프 유닛테스트 (2개↑ 조건)</div>
               <div class="va">
-                <div class="node action" style="width:100%; max-width:none; font-size:11px;">tdd-guard-claude 설치 시 실행<br><span style="font-weight:400;">npx vitest run --reporter=verbose</span></div>
-                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                <div style="background:#fff8f0; border-radius:8px; padding:8px; border:1px solid #fdba74; font-size:10px; width:100%;">
-                  <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">반환</div>
-                  <div style="color:#555; line-height:1.5;">PASS / FAIL<br>실패한 테스트 목록</div>
+                <div class="node check" style="width:100%; max-width:none; font-size:11px;">staged 소스 파일 ≥ 2개?</div>
+                <div style="display:flex; gap:8px; width:100%; margin-top:4px;">
+                  <div class="va" style="flex:1;">
+                    <div class="arrow-label">1개 이하</div>
+                    <div class="node ok" style="font-size:10px; width:100%;">스킵<br>(tdd-guard가 커버)</div>
+                  </div>
+                  <div class="va" style="flex:1.4;">
+                    <div class="arrow-label">2개↑</div>
+                    <div class="node step" style="font-size:10px; width:100%;">diff 기준 파일 매핑<br>해당 테스트만 실행</div>
+                    <div style="font-size:10px; color:#555; background:#fff; border-radius:6px; padding:4px; border:1px solid #fdba74; margin-top:4px; line-height:1.5;">
+                      middleware/*.js →<br>tests/middleware/*.test.js
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -318,7 +330,7 @@
         <div style="margin-top:16px; display:flex; gap:16px;">
           <div class="va" style="flex:1;">
             <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
-            <div class="node block" style="width:100%; max-width:none;">🚫 커밋 차단<br><span style="font-size:10px; font-weight:400;">정적분석 ERROR / 유닛테스트 FAIL + 수정 제안 출력</span></div>
+            <div class="node block" style="width:100%; max-width:none;">🚫 커밋 차단<br><span style="font-size:10px; font-weight:400;">ESLint ERROR / 스코프 유닛테스트 FAIL</span></div>
             <div style="font-size:10px; color:#666; margin-top:6px; text-align:center;">수정 제안 확인 → 코드 수정 후 재시도</div>
           </div>
           <div class="va" style="flex:1;">
@@ -340,90 +352,113 @@
   <!-- 2.5. 푸시 -->
   <div class="section">
     <div class="section-title" style="border-color:#6ee7b7; color:#065f46;">
-      <span class="num" style="background:#065f46;">↑</span> 푸시 (PrePush 보안 &amp; 회귀 검증)
+      <span class="num" style="background:#065f46;">↑</span> 푸시 (Bash+Agent+Skill 혼합 병렬 검증)
+    </div>
+
+    <!-- 위임 금지 배너 -->
+    <div style="background:#fef2f2; border:2px dashed #fca5a5; border-radius:10px; padding:10px 16px; margin-bottom:16px; font-size:11px; color:#7f1d1d;">
+      <strong>⛔ 위임 금지</strong> — Step 1~3은 메인 세션이 직접 수행합니다. "푸시 전담 agent"를 만들어 위임하지 마세요. P-2/P-3 Agent는 <em>개별 검증 작업 전담</em>이며 흐름 제어는 메인이 담당합니다.
     </div>
 
     <div style="display:flex; gap:24px; align-items:flex-start;">
       <!-- 메인 흐름 -->
-      <div class="va" style="min-width:160px;">
+      <div class="va" style="min-width:170px;">
         <div class="node start">git push 요청</div>
         <div class="arrow-line"></div><div class="arrow-tip">▼</div>
         <div class="node sync" style="font-size:11px; border:2px solid #6ee7b7;">
-          🔍 Step 0: Pre-flight<br>
-          <span style="font-weight:400; font-size:10px;">auth 미들웨어·공개 경로·레이어 수집<br>세션 캐시 있으면 스킵</span>
+          🔍 Step 1: 사전 수집<br>
+          <span style="font-weight:400; font-size:10px;">diff 수집·클리핑·fe/be 분류<br>security-approvals · preflight</span>
         </div>
         <div class="arrow-line"></div><div class="arrow-tip">▼</div>
         <div class="node check" style="font-size:11px;">tdd-guard-claude 설치됨?</div>
-        <div style="display:flex; gap:16px; margin-top:0;">
-          <div class="va">
-            <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
-            <div class="arrow-label">미설치</div>
-            <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-            <div class="node ok" style="font-size:10px; min-width:80px;">건너뜀<br>푸시 진행</div>
-          </div>
-          <div class="va">
-            <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
-            <div class="arrow-label">설치됨</div>
-            <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-            <div class="node step" style="font-size:11px; min-width:130px;">변경 범위 파악<br><span style="font-weight:400; font-size:10px;">git diff origin/브랜치...HEAD<br>frontend / backend 분류</span></div>
-            <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-            <div class="node action" style="font-size:11px; min-width:130px;">전체 테스트 스위트 실행<br><span style="font-weight:400; font-size:10px;">npx vitest run --reporter=verbose</span></div>
-            <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-            <div style="display:flex; gap:10px;">
-              <div class="va">
-                <div class="node block" style="font-size:10px; min-width:80px;">🚫 FAIL<br>푸시 차단<br>실패 목록 출력</div>
+        <div style="font-size:10px; color:#555; background:#f0fdf4; border-radius:6px; padding:4px 8px; margin:4px 0; max-width:160px; text-align:center;">
+          미설치 → P-1 스킵
+        </div>
+        <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+        <div class="node para" style="text-align:center; font-size:11px; padding:8px;">⚡ Step 2: 단일 메시지 병렬</div>
+      </div>
+
+      <div class="arrow" style="align-self:center; margin-top:80px;">→</div>
+
+      <!-- 병렬 박스 -->
+      <div style="flex:1;">
+        <div class="parallel-box" style="flex-direction:column; gap:10px;">
+          <div style="font-size:11px; color:#c2410c; font-weight:700; text-align:center; margin-bottom:2px;">Bash(P-1) + Agent(P-2) + Agent(P-3) + Skill(P-4) 동시 호출</div>
+
+          <!-- P-1 Bash 회귀 테스트 -->
+          <div style="width:100%;">
+            <div class="parallel-label">⚡ P-1 — Bash 회귀 테스트 (LLM spawn 없음)</div>
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1.5;">
+                <div class="node step" style="font-size:11px; width:100%; max-width:none;">
+                  npm --prefix frontend test 2&gt;&amp;1 | tail -20<br>
+                  npm --prefix backend test 2&gt;&amp;1 | tail -20
+                </div>
               </div>
-              <div class="va">
-                <div class="node ok" style="font-size:10px; min-width:80px;">✅ PASS</div>
-                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                <!-- code-reviewer + security-guard 병렬 -->
-                <div style="border:2px dashed #fdba74; border-radius:10px; background:#fffbeb; padding:10px; width:200px;">
-                  <div style="font-size:10px; font-weight:700; color:#c2410c; text-align:center; margin-bottom:8px;">⚡ 병렬 코드 검사</div>
-                  <div style="display:flex; gap:6px;">
-                    <div style="flex:1; background:#ede9fe; border-radius:6px; padding:6px; border:1px solid #c4b5fd; font-size:10px; text-align:center;">
-                      <div style="font-weight:700; color:#5b21b6;">code-reviewer</div>
-                      <div style="color:#555; margin-top:2px;">버그·보안·팀 규칙</div>
-                    </div>
-                    <div style="flex:1; background:#fef2f2; border-radius:6px; padding:6px; border:1px solid #fca5a5; font-size:10px; text-align:center;">
-                      <div style="font-weight:700; color:#991b1b;">security-guard</div>
-                      <div style="color:#555; margin-top:2px;">인증·SSRF·CORS</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="arrow-line"></div><div class="arrow-tip">▼</div>
-                <div style="display:flex; gap:6px; width:200px;">
-                  <div class="node block" style="flex:1; font-size:10px; min-width:0;">🚫 REJECT<br>푸시 차단</div>
-                  <div class="node ok" style="flex:1; font-size:10px; min-width:0;">✅ PASS<br>푸시 진행</div>
-                </div>
+              <div style="flex:1; background:#fff8f0; border-radius:8px; padding:8px; border:1px solid #fdba74; font-size:10px;">
+                <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">판정</div>
+                <div style="color:#555; line-height:1.6;">failed 없음 → PASS<br>failed 있음 → FAIL</div>
               </div>
             </div>
           </div>
+
+          <div style="height:1px; background:#fed7aa; width:100%;"></div>
+
+          <!-- P-2 + P-3 Agent -->
+          <div style="display:flex; gap:10px; width:100%;">
+            <div style="flex:1;">
+              <div class="parallel-label">⚡ P-2 — Agent code-reviewer-be</div>
+              <div class="node action" style="width:100%; max-width:none; font-size:11px;">
+                backend diff 있을 때만 spawn<br>
+                <span style="font-weight:400;">VERDICT: PASS/REJECT</span>
+              </div>
+            </div>
+            <div style="width:2px; background:#fed7aa; border-radius:2px; align-self:stretch;"></div>
+            <div style="flex:1;">
+              <div class="parallel-label">⚡ P-3 — Agent code-reviewer-fe</div>
+              <div class="node action" style="width:100%; max-width:none; font-size:11px;">
+                frontend diff 있을 때만 spawn<br>
+                <span style="font-weight:400;">VERDICT: PASS/REJECT</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="height:1px; background:#fed7aa; width:100%;"></div>
+
+          <!-- P-4 security-guard -->
+          <div style="width:100%;">
+            <div class="parallel-label">⚡ P-4 — Skill("security-guard") 항상 실행</div>
+            <div class="node step" style="width:100%; max-width:none; font-size:11px;">
+              보안 검사: 인증 누락·SSRF·CORS·약한 암호화 등<br>
+              <span style="font-weight:400;">VERDICT: PASS/REJECT</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 결과 분기 -->
+        <div style="margin-top:16px; display:flex; gap:16px;">
+          <div class="va" style="flex:1;">
+            <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+            <div class="node block" style="width:100%; max-width:none;">🚫 푸시 차단<br><span style="font-size:10px; font-weight:400;">P-1 FAIL / P-2 REJECT / P-3 REJECT / P-4 REJECT<br>하나라도 해당하면 차단</span></div>
+          </div>
+          <div class="va" style="flex:1;">
+            <div class="arrow-line" style="min-height:10px;"></div><div class="arrow-tip">▼</div>
+            <div class="node ok" style="width:100%; max-width:none;">✅ 4개 모두 PASS</div>
+            <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+            <div class="node step" style="width:100%; max-width:none; font-size:11px;">.security-cleared 생성</div>
+            <div class="arrow-line"></div><div class="arrow-tip">▼</div>
+            <div class="node end">git push origin 브랜치</div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- 설명 박스 -->
-      <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
-        <div style="background:#ecfdf5; border-radius:10px; padding:14px; border:1px solid #6ee7b7;">
-          <div style="font-size:12px; font-weight:700; color:#065f46; margin-bottom:8px;">💡 왜 푸시 시점인가?</div>
-          <div style="font-size:11px; color:#555; line-height:1.6;">
-            커밋은 브랜치 내 저장 단계.<br>
-            푸시는 팀과 코드를 공유하기 직전 — "내 변경이 전체 시스템을 깨뜨리지 않는가"를 검증하기에 가장 자연스러운 게이트.
-          </div>
-        </div>
-        <div style="background:#f0fdf4; border-radius:10px; padding:14px; border:1px solid #86efac;">
-          <div style="font-size:12px; font-weight:700; color:#166534; margin-bottom:8px;">📋 Pre-flight → code-reviewer + security-guard 전달</div>
-          <div style="font-family:monospace; font-size:10px; background:#fff; border-radius:6px; padding:10px; line-height:1.8; color:#333;">
-            [project-context]<br>
-            tech_stack: typescript, express, react<br>
-            top_dirs: backend, frontend, scripts<br>
-            source_dir: src<br>
-            layer_dirs: services/, controllers/, components/<br>
-            auth_middlewares: authenticate, checkToken<br>
-            public_routes: /health, /api/auth/login<br>
-            test_framework: vitest
-          </div>
-          <div style="font-size:10px; color:#555; margin-top:6px;">security-guard가 이 컨텍스트로 인증 판단 정확도 향상</div>
-        </div>
+    <div style="background:#f0fdf4; border-radius:10px; padding:14px; border:1px solid #86efac; margin-top:16px;">
+      <div style="font-size:12px; font-weight:700; color:#166534; margin-bottom:8px;">💡 설계 원칙 (v2.7.0)</div>
+      <div style="display:flex; gap:16px; font-size:11px; color:#555; line-height:1.6;">
+        <div style="flex:1;"><strong>LLM 없는 작업은 Bash</strong><br>ESLint, npm test — 판단이 불필요한 작업은 Bash 직접 실행. sub-agent spawn 비용 없음.</div>
+        <div style="flex:1;"><strong>1-level 중첩만 사용</strong><br>메인 → Agent (P-2/P-3)만. Agent 안에서 Agent spawn 금지. 결과 잘림 없음.</div>
+        <div style="flex:1;"><strong>스코프 유닛테스트</strong><br>커밋 A-2: staged 소스 2개↑ 조건부 실행. 전체 회귀는 push P-1에서만.</div>
       </div>
     </div>
   </div>
