@@ -386,6 +386,20 @@ router.post('/reviews/:skill', async (req, res) => {
   }
 });
 
+// DELETE /api/harness/evaluations/:id
+router.delete('/evaluations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = getPool();
+    const { rows } = await pool.query('DELETE FROM harness_evaluations WHERE id = $1 RETURNING id', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete evaluation' });
+  }
+});
+
 // DELETE /api/harness/references/:id
 router.delete('/references/:id', async (req, res) => {
   try {

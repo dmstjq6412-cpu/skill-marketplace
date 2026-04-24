@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations } from '../api/client';
+import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations, patchHarnessEvaluation, deleteHarnessEvaluation } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -9,7 +9,7 @@ const API_BASE = import.meta.env.VITE_API_URL
 const GOLDEN_RULES = [
   { num: 1, title: '목적 고수', desc: '모든 결정은 "코드 통제 + 토큰 밸런스"에 기여하는가로 판단한다.' },
   { num: 2, title: '지금 문제 우선', desc: '이론적으로 좋아 보이는 것보다 지금 실제로 불편한 것을 먼저 푼다.' },
-  { num: 3, title: '단순한 게 이긴다', desc: '복잡한 설계가 나오면 더 단순한 방법이 없는지 먼저 물어본다.' },
+  { num: 3, title: '단순한 게 이긴다', desc: '기능이 동작하는 가장 단순한 구조에서 시작한다. 복잡한 설계가 나오면 더 단순한 방법이 없는지 먼저 물어본다. 확장은 실제 불편함이 생겼을 때만 한다.' },
   { num: 4, title: '검증 전엔 확장 없음', desc: '현재 스킬이 실전에서 잘 동작하는지 확인하기 전에 새 스킬을 추가하지 않는다.' },
 ];
 
@@ -375,6 +375,7 @@ export default function HarnessLabPage() {
   const [activeTag, setActiveTag] = useState(null);
   const [allEvaluations, setAllEvaluations] = useState([]);
   const [activeEvalSkill, setActiveEvalSkill] = useState(null);
+  const [evalDecisionLoading, setEvalDecisionLoading] = useState(null);
 
   useEffect(() => {
     fetchHarnessLogs().then(data => setLogs(data.logs || []));
@@ -416,6 +417,24 @@ export default function HarnessLabPage() {
     const data = await fetchHarnessAnalysis(id);
     setAnalysisDetail(data);
     setLoading(false);
+  };
+
+  const handleGapDecision = async (ev, gapIndex, decision) => {
+    const key = `${ev.id}-${gapIndex}`;
+    setEvalDecisionLoading(key);
+    const existing = (ev.gap_decisions || []).filter(d => !(d.index === gapIndex && d.type === 'gap'));
+    const next = [...existing, { index: gapIndex, type: 'gap', decision }];
+    try {
+      await patchHarnessEvaluation(ev.id, next);
+      setAllEvaluations(prev => prev.map(e => e.id === ev.id ? { ...e, gap_decisions: next } : e));
+    } finally {
+      setEvalDecisionLoading(null);
+    }
+  };
+
+  const handleDeleteEvaluation = async id => {
+    await deleteHarnessEvaluation(id);
+    setAllEvaluations(prev => prev.filter(e => e.id !== id));
   };
 
   const handleCopy = async (text, message) => {
@@ -710,7 +729,11 @@ export default function HarnessLabPage() {
                     <div key={ev.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-4 space-y-3 flex flex-col">
                       <div className="flex items-start justify-between gap-2 flex-wrap">
                         <span className={`text-[11px] px-2 py-0.5 rounded-full border font-mono font-semibold ${verdictStyle(ev.verdict)}`}>{ev.verdict}</span>
-                        <span className="text-[10px] font-mono text-slate-400">{ev.date}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono text-slate-400">{ev.date}</span>
+                          <button type="button" onClick={() => handleDeleteEvaluation(ev.id)}
+                            className="text-[10px] text-slate-300 hover:text-red-400 transition-colors leading-none" aria-label="평가 삭제">✕</button>
+                        </div>
                       </div>
                       <div className="space-y-0.5">
                         <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 font-mono">{ev.skill}</p>
@@ -722,10 +745,10 @@ export default function HarnessLabPage() {
                       {ev.gaps?.length > 0 && (
                         <div className="space-y-1 flex-1">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{TEXT.gapsLabel}</p>
-                          <ul className="space-y-0.5">
-
+                          <ul className="space-y-1.5">
                             {ev.gaps.map((g, i) => {
                               const dec = (ev.gap_decisions || []).find(d => d.index === i && d.type === 'gap');
+                              const isLoading = evalDecisionLoading === `${ev.id}-${i}`;
                               const decStyle = dec?.decision === 'adopt'
                                 ? 'bg-green-100 text-green-700 border-green-200'
                                 : dec?.decision === 'skip'
@@ -734,19 +757,34 @@ export default function HarnessLabPage() {
                                 ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
                                 : null;
                               return (
-                                <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex gap-1.5 items-start">
-                                  <span className="text-slate-300 shrink-0">·</span>
-                                  <span className="flex-1">{g}</span>
-                                  {decStyle && (
-                                    <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${decStyle}`}>
-                                      {dec.decision}
-                                      {dec.issue_number && <span className="ml-1 opacity-70">#{dec.issue_number}</span>}
-                                    </span>
+                                <li key={i} className="text-xs text-slate-600 dark:text-slate-400">
+                                  <div className="flex gap-1.5 items-start">
+                                    <span className="text-slate-300 shrink-0">·</span>
+                                    <span className="flex-1">{g}</span>
+                                    {decStyle && (
+                                      <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${decStyle}`}>
+                                        {dec.decision}
+                                        {dec.issue_number && <span className="ml-1 opacity-70">#{dec.issue_number}</span>}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {!dec && (
+                                    <div className="flex gap-1 mt-1 ml-3">
+                                      <button type="button" disabled={isLoading}
+                                        onClick={() => handleGapDecision(ev, i, 'adopt')}
+                                        className="text-[10px] px-2 py-0.5 rounded border border-green-200 text-green-600 hover:bg-green-50 disabled:opacity-40 transition-colors">
+                                        adopt
+                                      </button>
+                                      <button type="button" disabled={isLoading}
+                                        onClick={() => handleGapDecision(ev, i, 'skip')}
+                                        className="text-[10px] px-2 py-0.5 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                                        skip
+                                      </button>
+                                    </div>
                                   )}
                                 </li>
                               );
                             })}
-
                           </ul>
                         </div>
                       )}

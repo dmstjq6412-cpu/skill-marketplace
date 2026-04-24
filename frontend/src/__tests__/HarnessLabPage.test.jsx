@@ -16,6 +16,8 @@ const mockFetchHarnessReferences = vi.fn();
 const mockDeleteHarnessReference = vi.fn();
 const mockFetchHarnessEvaluations = vi.fn();
 const mockFetchAllHarnessEvaluations = vi.fn();
+const mockPatchHarnessEvaluation = vi.fn();
+const mockDeleteHarnessEvaluation = vi.fn();
 
 
 vi.mock('../api/client', () => ({
@@ -30,6 +32,8 @@ vi.mock('../api/client', () => ({
   deleteHarnessReference: (...args) => mockDeleteHarnessReference(...args),
   fetchHarnessEvaluations: (...args) => mockFetchHarnessEvaluations(...args),
   fetchAllHarnessEvaluations: (...args) => mockFetchAllHarnessEvaluations(...args),
+  patchHarnessEvaluation: (...args) => mockPatchHarnessEvaluation(...args),
+  deleteHarnessEvaluation: (...args) => mockDeleteHarnessEvaluation(...args),
 
 }));
 
@@ -142,6 +146,8 @@ function seedMocks() {
   mockDeleteHarnessReference.mockResolvedValue({});
   mockFetchHarnessEvaluations.mockResolvedValue({ evaluations: [] });
   mockFetchAllHarnessEvaluations.mockResolvedValue({ evaluations: MOCK_EVALUATIONS });
+  mockPatchHarnessEvaluation.mockResolvedValue({ id: 3, gap_decisions: [{ index: 0, type: 'gap', decision: 'adopt' }] });
+  mockDeleteHarnessEvaluation.mockResolvedValue({ ok: true });
 
 }
 
@@ -315,6 +321,41 @@ describe('HarnessLabPage', () => {
       expect(pendingBadges[0]).toHaveClass('bg-yellow-100');
     });
 
+    it('gap에 결정이 없으면 adopt/skip 버튼이 렌더링된다', async () => {
+      mockFetchAllHarnessEvaluations.mockResolvedValue({
+        evaluations: [{ id: 3, skill: 'tdd-guard-claude', date: '2026-04-22', article_title: 'No Decision Yet', article_url: 'https://example.com/nd', gaps: ['테스트 커버리지 부족'], suggestions: [], verdict: 'partial', gap_decisions: [] }]
+      });
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('No Decision Yet')).toBeInTheDocument();
+      const adoptButtons = screen.getAllByRole('button', { name: 'adopt' });
+      const skipButtons = screen.getAllByRole('button', { name: 'skip' });
+      expect(adoptButtons).toHaveLength(1);
+      expect(skipButtons).toHaveLength(1);
+    });
+
+    it('adopt 버튼 클릭 시 patchHarnessEvaluation이 올바른 인자로 호출된다', async () => {
+      mockFetchAllHarnessEvaluations.mockResolvedValue({
+        evaluations: [{ id: 3, skill: 'tdd-guard-claude', date: '2026-04-22', article_title: 'No Decision Yet', article_url: 'https://example.com/nd', gaps: ['테스트 커버리지 부족'], suggestions: [], verdict: 'partial', gap_decisions: [] }]
+      });
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('No Decision Yet')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'adopt' }));
+      await waitFor(() => expect(mockPatchHarnessEvaluation).toHaveBeenCalledWith(3, [{ index: 0, type: 'gap', decision: 'adopt' }]));
+    });
+
+    it('삭제(✕) 버튼 클릭 시 deleteHarnessEvaluation이 호출되고 카드가 사라진다', async () => {
+      mockFetchAllHarnessEvaluations.mockResolvedValue({
+        evaluations: [{ id: 3, skill: 'tdd-guard-claude', date: '2026-04-22', article_title: 'No Decision Yet', article_url: 'https://example.com/nd', gaps: ['테스트 커버리지 부족'], suggestions: [], verdict: 'partial', gap_decisions: [] }]
+      });
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('No Decision Yet')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: '평가 삭제' }));
+      await waitFor(() => expect(mockDeleteHarnessEvaluation).toHaveBeenCalledWith(3));
+      expect(screen.queryByText('No Decision Yet')).not.toBeInTheDocument();
+    });
 
   });
 });
