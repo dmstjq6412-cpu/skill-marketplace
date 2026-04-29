@@ -1,5 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const mockAxiosInstance = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  delete: vi.fn(),
+  patch: vi.fn(),
+  interceptors: { request: { use: vi.fn() } },
+}));
+
+vi.mock('axios', () => ({
+  default: {
+    create: vi.fn(() => mockAxiosInstance),
+  },
+}));
+
 describe('getGithubLoginUrl', () => {
   const ORIGINAL_ENV = import.meta.env;
 
@@ -45,5 +59,21 @@ describe('getGithubLoginUrl', () => {
 
     expect(url).toMatch(/^https:\/\/github\.com\/login\/oauth\/authorize/);
     expect(url).toContain('scope=read%3Auser');
+  });
+});
+
+describe('deleteHarnessEvaluation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('DELETE /api/harness/evaluations/:id를 호출한다', async () => {
+    mockAxiosInstance.delete.mockResolvedValueOnce({ data: { ok: true } });
+
+    const { deleteHarnessEvaluation } = await import('../api/client');
+    const result = await deleteHarnessEvaluation(5);
+
+    expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/harness/evaluations/5');
+    expect(result).toEqual({ ok: true });
   });
 });

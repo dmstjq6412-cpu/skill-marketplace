@@ -4,6 +4,7 @@ import express from 'express';
 
 const mockPool = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock('../../src/db/database.js', () => ({ getPool: () => mockPool }));
+vi.mock('../../src/middleware/auth.js', () => ({ authenticate: (req, res, next) => next() }));
 
 const { default: harnessRouter } = await import('../../src/routes/harness.js');
 
@@ -364,6 +365,27 @@ describe('PATCH /evaluations/:id', () => {
       .patch('/evaluations/1')
       .send({ gap_decisions: GAP_DECISIONS });
     expect(res.status).toBe(500);
+  });
+});
+
+// ============================================================
+// DELETE /evaluations/:id — 평가 삭제
+// ============================================================
+describe('DELETE /evaluations/:id', () => {
+  beforeEach(() => mockPool.query.mockReset());
+
+  it('존재하는 평가를 삭제하면 ok: true를 반환한다', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+    const res = await request(buildApp()).delete('/evaluations/1');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
+
+  it('존재하지 않는 평가 삭제 시 404를 반환한다', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).delete('/evaluations/9999');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Not found');
   });
 });
 

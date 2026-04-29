@@ -16,6 +16,8 @@ const mockFetchHarnessReferences = vi.fn();
 const mockDeleteHarnessReference = vi.fn();
 const mockFetchHarnessEvaluations = vi.fn();
 const mockFetchAllHarnessEvaluations = vi.fn();
+const mockPatchHarnessEvaluation = vi.fn();
+const mockDeleteHarnessEvaluation = vi.fn();
 
 
 vi.mock('../api/client', () => ({
@@ -30,6 +32,8 @@ vi.mock('../api/client', () => ({
   deleteHarnessReference: (...args) => mockDeleteHarnessReference(...args),
   fetchHarnessEvaluations: (...args) => mockFetchHarnessEvaluations(...args),
   fetchAllHarnessEvaluations: (...args) => mockFetchAllHarnessEvaluations(...args),
+  patchHarnessEvaluation: (...args) => mockPatchHarnessEvaluation(...args),
+  deleteHarnessEvaluation: (...args) => mockDeleteHarnessEvaluation(...args),
 
 }));
 
@@ -43,7 +47,7 @@ const KR = {
   copiedNextPrompt: '\uB2E4\uC74C \uC5D0\uC774\uC804\uD2B8 \uD504\uB86C\uD504\uD2B8\uB97C \uBCF5\uC0AC\uD588\uC2B5\uB2C8\uB2E4',
   noWrapups: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uB370\uC77C\uB9AC wrap-up\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessLog: '`/harness-log`\uB97C \uC2E4\uD589\uD574 \uCCAB \uAE30\uB85D\uC744 \uC800\uC7A5\uD558\uC138\uC694.',
-  blueprintTab: '\uBE14\uB8E8\uD504\uB9B0\uD2B8',
+  blueprintTab: '\uC2A4\uD0AC \uAC1C\uC120\uC774\uB825',
 };
 
 const MOCK_EVALUATIONS = [
@@ -142,6 +146,8 @@ function seedMocks() {
   mockDeleteHarnessReference.mockResolvedValue({});
   mockFetchHarnessEvaluations.mockResolvedValue({ evaluations: [] });
   mockFetchAllHarnessEvaluations.mockResolvedValue({ evaluations: MOCK_EVALUATIONS });
+  mockPatchHarnessEvaluation.mockResolvedValue({ id: 3, gap_decisions: [{ index: 0, type: 'gap', decision: 'adopt' }] });
+  mockDeleteHarnessEvaluation.mockResolvedValue({ ok: true });
 
 }
 
@@ -214,7 +220,7 @@ describe('HarnessLabPage', () => {
     expect(screen.getByText(/50%/)).toBeInTheDocument();
   });
 
-  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uD0ED\uC5D0\uC11C \uC2A4\uD82C \uBAA9\uB85D\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
+  it('\uC2A4\uD0AC \uAC1C\uC120\uC774\uB825 \uD0ED\uC5D0\uC11C \uC2A4\uD0AC \uBAA9\uB85D\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
 
     const tabs = screen.getAllByText(KR.blueprintTab);
@@ -224,7 +230,7 @@ describe('HarnessLabPage', () => {
 
   });
 
-  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC2A4\uD82C \uD074\uB9AD \uC2DC fetchHarnessBlueprintBySkill\uC774 \uD638\uCD9C\uB41C\uB2E4', async () => {
+  it('\uC2A4\uD0AC \uAC1C\uC120\uC774\uB825 \uC2A4\uD0AC \uD074\uB9AD \uC2DC fetchHarnessBlueprintBySkill\uC774 \uD638\uCD9C\uB41C\uB2E4', async () => {
     renderPage();
 
     const tabs = screen.getAllByText(KR.blueprintTab);
@@ -315,6 +321,41 @@ describe('HarnessLabPage', () => {
       expect(pendingBadges[0]).toHaveClass('bg-yellow-100');
     });
 
+    it('gap에 결정이 없으면 adopt/skip 버튼이 렌더링된다', async () => {
+      mockFetchAllHarnessEvaluations.mockResolvedValue({
+        evaluations: [{ id: 3, skill: 'tdd-guard-claude', date: '2026-04-22', article_title: 'No Decision Yet', article_url: 'https://example.com/nd', gaps: ['테스트 커버리지 부족'], suggestions: [], verdict: 'partial', gap_decisions: [] }]
+      });
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('No Decision Yet')).toBeInTheDocument();
+      const adoptButtons = screen.getAllByRole('button', { name: 'adopt' });
+      const skipButtons = screen.getAllByRole('button', { name: 'skip' });
+      expect(adoptButtons).toHaveLength(1);
+      expect(skipButtons).toHaveLength(1);
+    });
+
+    it('adopt 버튼 클릭 시 patchHarnessEvaluation이 올바른 인자로 호출된다', async () => {
+      mockFetchAllHarnessEvaluations.mockResolvedValue({
+        evaluations: [{ id: 3, skill: 'tdd-guard-claude', date: '2026-04-22', article_title: 'No Decision Yet', article_url: 'https://example.com/nd', gaps: ['테스트 커버리지 부족'], suggestions: [], verdict: 'partial', gap_decisions: [] }]
+      });
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('No Decision Yet')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'adopt' }));
+      await waitFor(() => expect(mockPatchHarnessEvaluation).toHaveBeenCalledWith(3, [{ index: 0, type: 'gap', decision: 'adopt' }]));
+    });
+
+    it('삭제(✕) 버튼 클릭 시 deleteHarnessEvaluation이 호출되고 카드가 사라진다', async () => {
+      mockFetchAllHarnessEvaluations.mockResolvedValue({
+        evaluations: [{ id: 3, skill: 'tdd-guard-claude', date: '2026-04-22', article_title: 'No Decision Yet', article_url: 'https://example.com/nd', gaps: ['테스트 커버리지 부족'], suggestions: [], verdict: 'partial', gap_decisions: [] }]
+      });
+      renderPage();
+      fireEvent.click(screen.getByText('평가 이력'));
+      expect(await screen.findByText('No Decision Yet')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: '평가 삭제' }));
+      await waitFor(() => expect(mockDeleteHarnessEvaluation).toHaveBeenCalledWith(3));
+      expect(screen.queryByText('No Decision Yet')).not.toBeInTheDocument();
+    });
 
   });
 });

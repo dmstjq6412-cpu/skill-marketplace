@@ -6,6 +6,7 @@ description: >
   블루프린트 스냅샷을 .harness-lab/blueprints/YYYY-MM-DD.json 에 저장합니다.
   HarnessLabPage UI의 핸드오프 흐름과 동기화된 섹션 구조를 사용합니다.
 version: 2.4.0
+cost: light # 파일 읽기/쓰기 + API 호출, 서브에이전트 없음
 ---
 
 # Harness Log — 세션 일지 저장
@@ -83,13 +84,9 @@ version: 2.4.0
 
 같은 날짜에 이미 파일이 있으면 기존 파일을 읽어서 내용을 합치거나 업데이트합니다.
 
-### 5. 블루프린트 스냅샷 저장
+### 5. regression_signal 계산
 
-프로젝트의 `.claude/skills/` 디렉토리를 읽어 현재 스킬 상태를 JSON으로 추출합니다.
-
-경로: `.harness-lab/blueprints/YYYY-MM-DD.json`
-
-#### 5-1. 직전 harness-analysis 리포트 비교 (regression_signal)
+직전 harness-analysis 리포트 비교.
 
 `.harness-lab/analysis/reports/` 에서 가장 최근 JSON 파일을 읽습니다.
 파일이 있으면 `reject_rates` 필드를 이전 리포트(날짜순 2번째)와 비교합니다.
@@ -102,7 +99,9 @@ version: 2.4.0
   - rate 증가 → `"security-guard reject: 0% → 33% (주의)"`
   - 변화 없음 → `null`
 
-#### 5-2. 블루프린트 JSON 작성
+### 6. 블루프린트 저장
+
+경로: `.harness-lab/blueprints/YYYY-MM-DD.json`
 
 형식:
 ```json
@@ -132,7 +131,54 @@ version: 2.4.0
 - `regression_signal`이 "주의"이면 완료 보고 시 사용자에게 별도 언급합니다.
 - 같은 날짜 파일이 이미 있으면 `session_summary`와 변경된 스킬 상태만 업데이트합니다.
 
-### 6. 원격 서버 동기화 (API)
+### 7. skill-deps.json 갱신
+
+로컬(`.claude/skills/`) 및 전역(`~/.claude/skills/`) SKILL.md 파일의 frontmatter에서 `depends_on` 필드를 읽어 의존성 그래프를 생성합니다.
+
+```bash
+node -e "
+const fs = require('fs'), path = require('path'), os = require('os');
+
+const skillDirs = [
+  path.join(process.cwd(), '.claude/skills'),
+  path.join(os.homedir(), '.claude/skills')
+];
+
+const graph = {};
+
+for (const dir of skillDirs) {
+  if (!fs.existsSync(dir)) continue;
+  const entries = fs.readdirSync(dir);
+  for (const entry of entries) {
+    const skillFile = path.join(dir, entry, 'SKILL.md');
+    if (!fs.existsSync(skillFile)) continue;
+    const content = fs.readFileSync(skillFile, 'utf8');
+    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+    if (!fmMatch) continue;
+    const fm = fmMatch[1];
+    const deps = [];
+    const depsBlock = fm.match(/depends_on:([\s\S]*?)(?=\n[a-z]|\$)/);
+    if (depsBlock) {
+      const skillMatches = depsBlock[1].matchAll(/skill:\s*[\"']?([^\"'\n]+)[\"']?/g);
+      for (const m of skillMatches) deps.push(m[1].trim());
+    }
+    if (!graph[entry]) graph[entry] = deps;
+  }
+}
+
+const out = {
+  generated: new Date().toISOString().slice(0, 10),
+  graph
+};
+const outPath = '.harness-lab/skill-deps.json';
+fs.writeFileSync(outPath, JSON.stringify(out, null, 2));
+console.log('skill-deps.json 갱신 완료:', outPath);
+"
+```
+
+생성 실패 시 에러만 출력하고 다음 단계로 진행합니다.
+
+### 8. 원격 서버 동기화 (API)
 
 로컬 파일 저장 후, 원격 서버에도 동기화합니다.
 서버 URL은 환경변수 `VITE_API_URL` 또는 기본값 `https://skill-marketplace-umzq.onrender.com` 을 사용합니다.
@@ -194,7 +240,7 @@ main();
 - 서버 응답이 실패해도 로컬 파일은 이미 저장되었으므로 에러만 보고하고 진행합니다.
 - 성공 시 "원격 서버 동기화 완료"를 보고합니다.
 
-### 7. 완료 보고
+### 9. 완료 보고
 
 저장 완료 후 사용자에게 다음을 보고합니다:
 - 일지 파일 경로
