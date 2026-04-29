@@ -8,6 +8,7 @@ description: >
   harness-log와 컨텍스트를 공유하지 않으며 .harness-lab/analysis/ 에만 기록합니다.
 
 version: 1.2.0
+cost: light # 타이밍 기록 + 파일 저장, 서브에이전트 없음
 ---
 
 # Harness Analysis
