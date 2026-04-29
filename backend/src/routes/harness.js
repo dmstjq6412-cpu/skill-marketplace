@@ -1,5 +1,6 @@
 import express from 'express';
 import { getPool } from '../db/database.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 const ALLOWED_VIZ = ['todo-architecture', 'git-guard'];
@@ -387,7 +388,7 @@ router.post('/reviews/:skill', async (req, res) => {
 });
 
 // DELETE /api/harness/evaluations/:id
-router.delete('/evaluations/:id', async (req, res) => {
+router.delete('/evaluations/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const pool = getPool();

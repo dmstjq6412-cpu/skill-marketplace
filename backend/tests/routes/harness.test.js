@@ -4,6 +4,7 @@ import express from 'express';
 
 const mockPool = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock('../../src/db/database.js', () => ({ getPool: () => mockPool }));
+vi.mock('../../src/middleware/auth.js', () => ({ authenticate: (req, res, next) => next() }));
 
 const { default: harnessRouter } = await import('../../src/routes/harness.js');
 
