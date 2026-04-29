@@ -47,7 +47,7 @@ const KR = {
   copiedNextPrompt: '\uB2E4\uC74C \uC5D0\uC774\uC804\uD2B8 \uD504\uB86C\uD504\uD2B8\uB97C \uBCF5\uC0AC\uD588\uC2B5\uB2C8\uB2E4',
   noWrapups: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uB370\uC77C\uB9AC wrap-up\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessLog: '`/harness-log`\uB97C \uC2E4\uD589\uD574 \uCCAB \uAE30\uB85D\uC744 \uC800\uC7A5\uD558\uC138\uC694.',
-  blueprintTab: '\uBE14\uB8E8\uD504\uB9B0\uD2B8',
+  blueprintTab: '\uC2A4\uD0AC \uAC1C\uC120\uC774\uB825',
 };
 
 const MOCK_EVALUATIONS = [
@@ -220,7 +220,7 @@ describe('HarnessLabPage', () => {
     expect(screen.getByText(/50%/)).toBeInTheDocument();
   });
 
-  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uD0ED\uC5D0\uC11C \uC2A4\uD82C \uBAA9\uB85D\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
+  it('\uC2A4\uD0AC \uAC1C\uC120\uC774\uB825 \uD0ED\uC5D0\uC11C \uC2A4\uD0AC \uBAA9\uB85D\uC774 \uB80C\uB354\uB9C1\uB41C\uB2E4', async () => {
     renderPage();
 
     const tabs = screen.getAllByText(KR.blueprintTab);
@@ -230,7 +230,7 @@ describe('HarnessLabPage', () => {
 
   });
 
-  it('\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC2A4\uD82C \uD074\uB9AD \uC2DC fetchHarnessBlueprintBySkill\uC774 \uD638\uCD9C\uB41C\uB2E4', async () => {
+  it('\uC2A4\uD0AC \uAC1C\uC120\uC774\uB825 \uC2A4\uD0AC \uD074\uB9AD \uC2DC fetchHarnessBlueprintBySkill\uC774 \uD638\uCD9C\uB41C\uB2E4', async () => {
     renderPage();
 
     const tabs = screen.getAllByText(KR.blueprintTab);

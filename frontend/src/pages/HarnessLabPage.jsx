@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, patchHarnessEvaluation, deleteHarnessEvaluation } from '../api/client';
+import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations, patchHarnessEvaluation, deleteHarnessEvaluation } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -46,6 +46,8 @@ const TEXT = {
   reportList: '\uC2DC\uBC94\uC6B4\uD589 \uBAA9\uB85D',
   referencesTab: '\uCC38\uACE0\uC790\uB8CC',
   noReferences: '\uC800\uC7A5\uB41C \uCC38\uACE0\uC790\uB8CC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
+  evaluationsTab: '\uD3C9\uAC00 \uC774\uB825',
+  noEvaluations: '\uC800\uC7A5\uB41C \uD3C9\uAC00 \uC774\uB825\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessReference: '`/harness-reference` \uB85C \uB9C1\uD06C\uB97C \uC800\uC7A5\uD558\uC138\uC694.',
   gapsLabel: '갭',
   suggestionsLabel: '제안',
@@ -370,12 +372,15 @@ export default function HarnessLabPage() {
   const [references, setReferences] = useState([]);
   const [activeTag, setActiveTag] = useState(null);
   const [evalDecisionLoading, setEvalDecisionLoading] = useState(null);
+  const [allEvaluations, setAllEvaluations] = useState([]);
+  const [evalSkillFilter, setEvalSkillFilter] = useState(null);
 
   useEffect(() => {
     fetchHarnessLogs().then(data => setLogs(data.logs || []));
     fetchHarnessBlueprints().then(data => setSkillList(data.skills || []));
     fetchHarnessAnalyses().then(data => setAnalysisList(data.reports || []));
     fetchHarnessReferences().then(data => setReferences(data.references || []));
+    fetchAllHarnessEvaluations().then(data => setAllEvaluations(data.evaluations || []));
   }, []);
 
   const todayLog = logs[0];
@@ -430,6 +435,24 @@ export default function HarnessLabPage() {
     setSkillEvaluations(prev => prev.filter(e => e.id !== id));
   };
 
+  const handleAllEvalGapDecision = async (ev, gapIndex, decision) => {
+    const key = `${ev.id}-${gapIndex}`;
+    setEvalDecisionLoading(key);
+    const existing = (ev.gap_decisions || []).filter(d => !(d.index === gapIndex && d.type === 'gap'));
+    const next = [...existing, { index: gapIndex, type: 'gap', decision }];
+    try {
+      await patchHarnessEvaluation(ev.id, next);
+      setAllEvaluations(prev => prev.map(e => e.id === ev.id ? { ...e, gap_decisions: next } : e));
+    } finally {
+      setEvalDecisionLoading(null);
+    }
+  };
+
+  const handleAllDeleteEvaluation = async id => {
+    await deleteHarnessEvaluation(id);
+    setAllEvaluations(prev => prev.filter(e => e.id !== id));
+  };
+
   const handleCopy = async (text, message) => {
     const ok = await copyText(text);
     setCopyStatus(ok ? message : TEXT.clipboardUnavailable);
@@ -482,7 +505,7 @@ export default function HarnessLabPage() {
       </div>
 
       <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit flex-wrap">
-        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab]].map(([key, label]) => (
+        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab], ['evaluations', TEXT.evaluationsTab]].map(([key, label]) => (
           <button key={key} type="button" onClick={() => { setTab(key); setCopyStatus(''); if (key !== 'viz') setActiveViz(null); }} className={`px-4 py-2 text-sm rounded-lg ${tab === key ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
         ))}
       </div>
@@ -754,6 +777,98 @@ export default function HarnessLabPage() {
         <div className="grid gap-3 md:grid-cols-2">{Object.entries(VIZ).map(([key, item]) => <button key={key} type="button" onClick={() => setActiveViz(key)} className="text-left px-4 py-4 rounded-2xl border bg-white dark:bg-[#111218]"><p className="text-sm font-semibold">{item.label}</p><p className="mt-1 text-xs text-slate-500">{item.hint}</p></button>)}</div>
         {!activeViz ? <div className="h-80 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.selectViz}</div> : <div className="space-y-3"><p className="text-sm text-slate-500">{VIZ[activeViz].hint}</p><div className="rounded-2xl border border-slate-200 overflow-hidden bg-white" style={{ height: '78vh' }}><iframe key={activeViz} src={`/viz/${activeViz}.html`} className="w-full h-full border-0" title={activeViz} sandbox="allow-scripts allow-same-origin" /></div></div>}
       </div>}
+
+      {tab === 'evaluations' && (() => {
+        const evalSkills = [...new Set(allEvaluations.map(e => e.skill))];
+        const filteredEvals = evalSkillFilter ? allEvaluations.filter(e => e.skill === evalSkillFilter) : allEvaluations;
+        return (
+          <div className="space-y-4">
+            {evalSkills.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {evalSkills.map(skill => (
+                  <button key={skill} type="button" onClick={() => setEvalSkillFilter(evalSkillFilter === skill ? null : skill)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-mono font-semibold border transition-colors ${evalSkillFilter === skill ? 'bg-violet-600 text-white border-violet-600' : 'border-slate-200 text-slate-500 hover:border-violet-300'}`}>
+                    {skill}
+                  </button>
+                ))}
+              </div>
+            )}
+            {filteredEvals.length === 0
+              ? <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-400"><p>{TEXT.noEvaluations}</p></div>
+              : <div className="space-y-3">
+                  {filteredEvals.map(ev => {
+                    const verdictStyle = v => v === 'pass' ? 'bg-green-50 border-green-200 text-green-700' : v === 'needs-work' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-amber-50 border-amber-200 text-amber-700';
+                    return (
+                      <div key={ev.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-4 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <a href={ev.article_url} target="_blank" rel="noopener noreferrer"
+                            className="text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-violet-600 transition-colors">
+                            {ev.article_title}
+                          </a>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] text-slate-400">{ev.date}</span>
+                            <span className="font-mono text-[10px] text-slate-500">{ev.skill}</span>
+                            {ev.verdict && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${verdictStyle(ev.verdict)}`}>{ev.verdict}</span>
+                            )}
+                            <button type="button" onClick={() => handleAllDeleteEvaluation(ev.id)}
+                              className="text-[10px] text-slate-300 hover:text-red-400 transition-colors leading-none" aria-label="평가 삭제">✕</button>
+                          </div>
+                        </div>
+                        {ev.gaps?.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">갭</p>
+                            <ul className="space-y-1.5">
+                              {ev.gaps.map((g, j) => {
+                                const dec = (ev.gap_decisions || []).find(d => d.index === j && d.type === 'gap');
+                                const isLoading = evalDecisionLoading === `${ev.id}-${j}`;
+                                const decStyle = dec?.decision === 'adopt'
+                                  ? 'bg-green-100 text-green-700 border-green-200'
+                                  : dec?.decision === 'skip'
+                                  ? 'bg-gray-100 text-gray-500 border-gray-200'
+                                  : dec?.decision === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                  : null;
+                                return (
+                                  <li key={j} className="text-xs text-slate-600 dark:text-slate-400">
+                                    <div className="flex gap-1.5 items-start">
+                                      <span className="text-slate-300 shrink-0">·</span>
+                                      <span className="flex-1">{g}</span>
+                                      {decStyle && (
+                                        <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${decStyle}`}>
+                                          {dec.decision}
+                                          {dec.issue_number && <span className="ml-1 opacity-70">#{dec.issue_number}</span>}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {!dec && (
+                                      <div className="flex gap-1 mt-1 ml-3">
+                                        <button type="button" disabled={isLoading}
+                                          onClick={() => handleAllEvalGapDecision(ev, j, 'adopt')}
+                                          className="text-[10px] px-2 py-0.5 rounded border border-green-200 text-green-600 hover:bg-green-50 disabled:opacity-40 transition-colors">
+                                          adopt
+                                        </button>
+                                        <button type="button" disabled={isLoading}
+                                          onClick={() => handleAllEvalGapDecision(ev, j, 'skip')}
+                                          className="text-[10px] px-2 py-0.5 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                                          skip
+                                        </button>
+                                      </div>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+            }
+          </div>
+        );
+      })()}
     </div>
   );
 }
