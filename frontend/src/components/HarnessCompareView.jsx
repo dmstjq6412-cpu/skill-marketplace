@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const PHASE_ORDER = ['baseline', 'tdd-guard-claude', 'git-guard-claude', 'security-guard', 'harness-analysis'];
+const SKILL_OPTIONS = ['전체', ...PHASE_ORDER.filter(p => p !== 'baseline')];
 
 const PHASE_COLORS = {
   'baseline':        'bg-slate-400',
@@ -48,22 +49,44 @@ function TokenBar({ tokenPhases }) {
   );
 }
 
-function LineChart({ reports }) {
-  const values = reports.map(r => r.quality?.efficiency?.guard_invocations_per_loc ?? 0);
+function LineChart({ reports, selectedSkill }) {
+  const sorted = [...reports].sort((a, b) => a.date.localeCompare(b.date));
+
+  const values = sorted.map(r => {
+    if (selectedSkill === '전체') {
+      return r.quality?.efficiency?.guard_invocations_per_loc ?? 0;
+    }
+    return r.quality?.token_phases?.[selectedSkill] ?? 0;
+  });
+
   const max = Math.max(...values, 0.01);
   const W = 300;
-  const H = 64;
-  const PAD = 10;
-  const n = reports.length;
+  const H = 80;
+  const PAD_X = 36;
+  const PAD_Y = 18;
+  const n = sorted.length;
 
   const pts = values.map((v, i) => ({
-    x: n === 1 ? W / 2 : PAD + (i / (n - 1)) * (W - PAD * 2),
-    y: H - PAD - ((v / max) * (H - PAD * 2)),
+    x: n === 1 ? W / 2 : PAD_X + (i / (n - 1)) * (W - PAD_X - 10),
+    y: PAD_Y + ((1 - v / max) * (H - PAD_Y - 14)),
     v,
   }));
 
+  const yZero = PAD_Y + (H - PAD_Y - 14);
+  const maxLabel = selectedSkill === '전체' ? max.toFixed(2) : max.toLocaleString();
+  const fmt = v => selectedSkill === '전체' ? v.toFixed(2) : v.toLocaleString();
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" aria-label="tokens/LOC 추이">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" aria-label="추이 그래프">
+      {/* Y축 기준선 */}
+      <line x1={PAD_X} y1={PAD_Y} x2={PAD_X} y2={yZero} stroke="#e2e8f0" strokeWidth="1" />
+      {/* Y축 라벨 — max */}
+      <text x={PAD_X - 4} y={PAD_Y + 4} textAnchor="end" fontSize="9" fill="#94a3b8">{maxLabel}</text>
+      {/* Y축 라벨 — 0 */}
+      <text x={PAD_X - 4} y={yZero + 1} textAnchor="end" fontSize="9" fill="#94a3b8" data-testid="y-axis-zero">0</text>
+      {/* 0 기준선 */}
+      <line x1={PAD_X} y1={yZero} x2={W - 4} y2={yZero} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
+
       {n > 1 && (
         <polyline
           points={pts.map(p => `${p.x},${p.y}`).join(' ')}
@@ -74,21 +97,34 @@ function LineChart({ reports }) {
         />
       )}
       {pts.map((p, i) => (
-        <circle
-          key={i}
-          cx={p.x}
-          cy={p.y}
-          r="4"
-          fill="#6366f1"
-          data-testid="line-point"
-          aria-label={`${reports[i].date}: ${p.v.toFixed(3)}`}
-        />
+        <g key={i}>
+          <circle
+            cx={p.x}
+            cy={p.y}
+            r="4"
+            fill="#6366f1"
+            data-testid="line-point"
+            aria-label={`${sorted[i].date}: ${fmt(p.v)}`}
+          />
+          <text
+            x={p.x}
+            y={p.y - 7}
+            textAnchor="middle"
+            fontSize="9"
+            fill="#6366f1"
+            data-testid="line-value-label"
+          >
+            {fmt(p.v)}
+          </text>
+        </g>
       ))}
     </svg>
   );
 }
 
 export default function HarnessCompareView({ reports = [], loading = false }) {
+  const [selectedSkill, setSelectedSkill] = useState('전체');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-slate-400" aria-busy="true">
@@ -150,14 +186,33 @@ export default function HarnessCompareView({ reports = [], loading = false }) {
         ))}
       </div>
 
-      {/* 꺾은선: 가드 호출/LOC 추이 */}
-      <div className="border border-slate-100 dark:border-slate-800 rounded-xl p-4 space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-          가드 호출 / LOC 추이
-        </p>
-        <LineChart reports={reports} />
+      {/* 꺾은선: 추이 */}
+      <div className="border border-slate-100 dark:border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            {selectedSkill === '전체' ? '가드 호출 / LOC 추이' : `${selectedSkill} 토큰 추이`}
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {SKILL_OPTIONS.map(opt => (
+              <button
+                key={opt}
+                onClick={() => setSelectedSkill(opt)}
+                data-selected={selectedSkill === opt ? 'true' : 'false'}
+                aria-pressed={selectedSkill === opt}
+                className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                  selectedSkill === opt
+                    ? 'bg-indigo-500 text-white border-indigo-500'
+                    : 'text-slate-500 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <LineChart reports={reports} selectedSkill={selectedSkill} />
         <div className="flex justify-between text-[10px] text-slate-400 font-mono px-1">
-          {reports.map(r => (
+          {[...reports].sort((a, b) => a.date.localeCompare(b.date)).map(r => (
             <span key={r.date}>{r.date.slice(5)}</span>
           ))}
         </div>
