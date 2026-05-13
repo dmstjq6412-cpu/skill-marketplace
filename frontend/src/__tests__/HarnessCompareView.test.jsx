@@ -2,7 +2,7 @@
 // tokens/LOC 꺾은선 추이, REJECT 강조, policy 라벨, 빈 상태·로딩 상태를 렌더링하는 컴포넌트 테스트
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 // Import component AFTER mocks (Red 단계 — 파일 미존재, 실패 정상)
@@ -223,5 +223,126 @@ describe('HarnessCompareView — tokens/LOC 꺾은선 그래프', () => {
     // data-testid="line-point" 또는 동일한 식별자 사용
     const points = document.querySelectorAll('[data-testid="line-point"]');
     expect(points.length).toBe(reports.length);
+  });
+});
+
+// ============================================================
+// 정렬: 날짜 오름차순 렌더링 보장
+// ============================================================
+describe('HarnessCompareView — 정렬 보장', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('날짜 역순으로 props를 전달해도 꺾은선 포인트는 날짜 오름차순 순서로 렌더링된다', () => {
+    // reports를 역순(최신→오래된)으로 전달해도 그래프는 왼쪽=오래된, 오른쪽=최신 순서여야 한다
+    const reports = [REPORT_NO_POLICY, REPORT_WITH_REJECT, REPORT_NO_REJECT]; // 역순 전달
+    renderView({ reports });
+
+    const points = document.querySelectorAll('[data-testid="line-point"]');
+    expect(points.length).toBe(3);
+
+    const sorted = [...reports].sort((a, b) => a.date.localeCompare(b.date));
+    const firstLabel = points[0].getAttribute('aria-label') || '';
+    expect(firstLabel).toMatch(new RegExp(sorted[0].date));
+
+    const lastLabel = points[points.length - 1].getAttribute('aria-label') || '';
+    expect(lastLabel).toMatch(new RegExp(sorted[sorted.length - 1].date));
+  });
+});
+
+// ============================================================
+// 수치 라벨: 각 꺾은선 포인트 위에 값 텍스트 표시
+// ============================================================
+describe('HarnessCompareView — 수치 라벨', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('각 꺾은선 포인트 위에 값이 텍스트로 표시된다', () => {
+    // 포인트마다 수치를 직접 보여줘야 그래프를 읽는 인지 부하를 줄일 수 있다
+    renderView({ reports: [REPORT_NO_REJECT] });
+
+    const expectedVal = REPORT_NO_REJECT.quality.efficiency.guard_invocations_per_loc.toFixed(2);
+    const labelEl =
+      document.querySelector('[data-testid="line-value-label"]') ||
+      screen.queryByText(expectedVal);
+    expect(labelEl).not.toBeNull();
+  });
+});
+
+// ============================================================
+// Y축 라벨: 0 라벨과 max 라벨 표시
+// ============================================================
+describe('HarnessCompareView — Y축 라벨', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('Y축에 0 라벨이 표시된다', () => {
+    // Y축 기준선(0)이 명시되어야 그래프 스케일을 직관적으로 파악할 수 있다
+    renderView({ reports: [REPORT_NO_REJECT] });
+
+    const zeroEl =
+      document.querySelector('[data-testid="y-axis-zero"]') ||
+      // SVG text 요소 중 내용이 정확히 '0'인 것
+      Array.from(document.querySelectorAll('svg text')).find(
+        (el) => el.textContent.trim() === '0'
+      );
+    expect(zeroEl).not.toBeNull();
+  });
+});
+
+// ============================================================
+// 스킬 선택 토글
+// ============================================================
+describe('HarnessCompareView — 스킬 선택 토글', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('스킬 토글 버튼이 렌더링된다 — 전체, 각 스킬 이름', () => {
+    // 사용자가 지표 기준(전체/특정 스킬)을 전환할 수 있어야 한다
+    renderView({ reports: [REPORT_NO_REJECT] });
+
+    // '전체' 버튼 존재 확인
+    const allBtn =
+      screen.queryByRole('button', { name: /전체/i }) ||
+      screen.queryByText(/전체/i);
+    expect(allBtn).not.toBeNull();
+
+    // 'git-guard-claude' 버튼 존재 확인
+    const gitGuardBtn =
+      screen.queryByRole('button', { name: /git-guard-claude/i }) ||
+      screen.queryByText(/git-guard-claude/i);
+    expect(gitGuardBtn).not.toBeNull();
+  });
+
+  it('전체 선택 시(기본) — guard_invocations_per_loc 기준으로 포인트 aria-label이 렌더링된다', () => {
+    // 기본 상태에서는 효율 지표(guard_invocations_per_loc)를 기준으로 꺾은선이 그려져야 한다
+    renderView({ reports: [REPORT_NO_REJECT] });
+
+    const expectedVal = REPORT_NO_REJECT.quality.efficiency.guard_invocations_per_loc.toFixed(2);
+    const point = document.querySelector('[data-testid="line-point"]');
+    expect(point).not.toBeNull();
+    const label = point.getAttribute('aria-label') || '';
+    expect(label).toMatch(new RegExp(expectedVal.replace('.', '\\.')));
+  });
+
+  it('git-guard-claude 선택 시 — token_phases["git-guard-claude"] 기준으로 포인트 aria-label이 렌더링된다', () => {
+    // 스킬 선택 시 해당 스킬의 토큰 소비량을 기준으로 꺾은선이 전환되어야 한다
+    renderView({ reports: [REPORT_NO_REJECT] });
+
+    const expectedTokens = REPORT_NO_REJECT.quality.token_phases['git-guard-claude'].toLocaleString();
+    const gitGuardBtn =
+      screen.queryByRole('button', { name: /git-guard-claude/i }) ||
+      screen.queryByText('git-guard-claude');
+    expect(gitGuardBtn).not.toBeNull();
+    fireEvent.click(gitGuardBtn);
+
+    const point = document.querySelector('[data-testid="line-point"]');
+    expect(point).not.toBeNull();
+    const label = point.getAttribute('aria-label') || '';
+    expect(label).toMatch(new RegExp(expectedTokens));
   });
 });
