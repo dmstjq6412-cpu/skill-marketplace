@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations, patchHarnessEvaluation, deleteHarnessEvaluation } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
+import HarnessCompareView from '../components/HarnessCompareView';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -375,6 +376,9 @@ export default function HarnessLabPage() {
   const [allEvaluations, setAllEvaluations] = useState([]);
   const [evalSkillFilter, setEvalSkillFilter] = useState(null);
 
+  const [analysisView, setAnalysisView] = useState('list');
+
+
   useEffect(() => {
     fetchHarnessLogs().then(data => setLogs(data.logs || []));
     fetchHarnessBlueprints().then(data => setSkillList(data.skills || []));
@@ -670,29 +674,42 @@ export default function HarnessLabPage() {
         </div>
       </div>}
 
-      {tab === 'analysis' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="space-y-2">
-          <h2 className="text-xs uppercase tracking-wider text-slate-400">{TEXT.reportList}</h2>
-          {analysisList.length === 0
-            ? <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400"><p>{TEXT.noAnalyses}</p><p className="text-xs mt-1 font-mono">{TEXT.runHarnessAnalysis}</p></div>
-            : analysisList.map(r => (
-              <button key={r.id} type="button" onClick={() => openAnalysis(r.id)}
-                className={`w-full text-left px-4 py-3 rounded-xl border bg-white dark:bg-[#111218] hover:border-violet-200 transition-colors ${selectedAnalysis === r.id ? 'border-violet-400' : ''}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">{r.date}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{r.git?.commit_count ?? 0}커밋</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1 font-mono truncate">{r.branch}</p>
-              </button>
-            ))
-          }
+      {tab === 'analysis' && <div className="space-y-4">
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-lg w-fit">
+          {[['list', '목록'], ['compare', '비교']].map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setAnalysisView(key)}
+              className={`px-3 py-1.5 text-xs rounded-md ${analysisView === key ? 'bg-white dark:bg-slate-700 shadow-sm font-medium' : 'text-slate-500'}`}>
+              {label}
+            </button>
+          ))}
         </div>
 
-        <div className="lg:col-span-2">
-          {loading && <div className="h-40 flex items-center justify-center"><div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>}
-          {!loading && !analysisDetail && <div className="h-64 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.pickAnalysis}</div>}
-          {!loading && !!analysisDetail && <AnalysisDetail report={analysisDetail} />}
-        </div>
+        {analysisView === 'list' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <h2 className="text-xs uppercase tracking-wider text-slate-400">{TEXT.reportList}</h2>
+            {analysisList.length === 0
+              ? <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400"><p>{TEXT.noAnalyses}</p><p className="text-xs mt-1 font-mono">{TEXT.runHarnessAnalysis}</p></div>
+              : analysisList.map(r => (
+                <button key={r.id} type="button" onClick={() => openAnalysis(r.id)}
+                  className={`w-full text-left px-4 py-3 rounded-xl border bg-white dark:bg-[#111218] hover:border-violet-200 transition-colors ${selectedAnalysis === r.id ? 'border-violet-400' : ''}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">{r.date}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{r.git?.commit_count ?? 0}커밋</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 font-mono truncate">{r.branch}</p>
+                </button>
+              ))
+            }
+          </div>
+
+          <div className="lg:col-span-2">
+            {loading && <div className="h-40 flex items-center justify-center"><div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>}
+            {!loading && !analysisDetail && <div className="h-64 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.pickAnalysis}</div>}
+            {!loading && !!analysisDetail && <AnalysisDetail report={analysisDetail} />}
+          </div>
+        </div>}
+
+        {analysisView === 'compare' && <HarnessCompareView reports={analysisList} loading={loading} />}
       </div>}
 
       {tab === 'references' && (() => {
