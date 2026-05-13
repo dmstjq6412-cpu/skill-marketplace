@@ -375,7 +375,9 @@ export default function HarnessLabPage() {
   const [evalDecisionLoading, setEvalDecisionLoading] = useState(null);
   const [allEvaluations, setAllEvaluations] = useState([]);
   const [evalSkillFilter, setEvalSkillFilter] = useState(null);
+
   const [analysisView, setAnalysisView] = useState('list');
+
 
   useEffect(() => {
     fetchHarnessLogs().then(data => setLogs(data.logs || []));
