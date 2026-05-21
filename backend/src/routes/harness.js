@@ -406,14 +406,16 @@ router.delete('/evaluations/:id', authenticate, async (req, res) => {
 
 // GET /api/harness/system-map — 런타임 생성 (TD-4: 항상 최신 소스 반영)
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-router.get('/system-map', (req, res) => {
+router.get('/system-map', authenticate, (req, res) => {
   try {
     const output = execSync('node scripts/generate-system-map.js --json', {
       cwd: PROJECT_ROOT,
       encoding: 'utf8',
+      timeout: 10000,
     });
     res.json(JSON.parse(output));
   } catch (err) {
+    console.error('[system-map] execSync failed:', err.message);
     res.status(500).json({ error: 'Failed to generate system map' });
   }
 });
