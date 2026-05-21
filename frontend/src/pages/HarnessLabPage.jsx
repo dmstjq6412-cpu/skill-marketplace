@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations } from '../api/client';
+import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations, patchHarnessEvaluation, deleteHarnessEvaluation } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
+import HarnessCompareView from '../components/HarnessCompareView';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -9,7 +10,7 @@ const API_BASE = import.meta.env.VITE_API_URL
 const GOLDEN_RULES = [
   { num: 1, title: '목적 고수', desc: '모든 결정은 "코드 통제 + 토큰 밸런스"에 기여하는가로 판단한다.' },
   { num: 2, title: '지금 문제 우선', desc: '이론적으로 좋아 보이는 것보다 지금 실제로 불편한 것을 먼저 푼다.' },
-  { num: 3, title: '단순한 게 이긴다', desc: '복잡한 설계가 나오면 더 단순한 방법이 없는지 먼저 물어본다.' },
+  { num: 3, title: '단순한 게 이긴다', desc: '기능이 동작하는 가장 단순한 구조에서 시작한다. 복잡한 설계가 나오면 더 단순한 방법이 없는지 먼저 물어본다. 확장은 실제 불편함이 생겼을 때만 한다.' },
   { num: 4, title: '검증 전엔 확장 없음', desc: '현재 스킬이 실전에서 잘 동작하는지 확인하기 전에 새 스킬을 추가하지 않는다.' },
 ];
 
@@ -37,7 +38,7 @@ const TEXT = {
   compareYesterday: '\uC5B4\uC81C\uC640 \uBE44\uAD50',
   copiedNextPrompt: '\uB2E4\uC74C \uC5D0\uC774\uC804\uD2B8 \uD504\uB86C\uD504\uD2B8\uB97C \uBCF5\uC0AC\uD588\uC2B5\uB2C8\uB2E4',
   logsTab: '\uB370\uC77C\uB9AC \uB85C\uADF8',
-  blueprintTab: '\uBE14\uB8E8\uD504\uB9B0\uD2B8',
+  blueprintTab: '스킬 개선이력',
   vizTab: '\uC2DC\uAC01\uD654',
   analysisTab: '\uC2DC\uBC94\uC6B4\uD589',
   noAnalyses: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uC2DC\uBC94\uC6B4\uD589 \uB9AC\uD3EC\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
@@ -46,7 +47,11 @@ const TEXT = {
   reportList: '\uC2DC\uBC94\uC6B4\uD589 \uBAA9\uB85D',
   referencesTab: '\uCC38\uACE0\uC790\uB8CC',
   noReferences: '\uC800\uC7A5\uB41C \uCC38\uACE0\uC790\uB8CC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
+  evaluationsTab: '\uD3C9\uAC00 \uC774\uB825',
+  noEvaluations: '\uC800\uC7A5\uB41C \uD3C9\uAC00 \uC774\uB825\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessReference: '`/harness-reference` \uB85C \uB9C1\uD06C\uB97C \uC800\uC7A5\uD558\uC138\uC694.',
+  gapsLabel: '갭',
+  suggestionsLabel: '제안',
   allTags: '\uC804\uCCB4',
   logbook: '\uC138\uC158 \uB85C\uADF8\uBD81',
   noWrapups: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uB370\uC77C\uB9AC wrap-up\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
@@ -367,12 +372,17 @@ export default function HarnessLabPage() {
   const [analysisDetail, setAnalysisDetail] = useState(null);
   const [references, setReferences] = useState([]);
   const [activeTag, setActiveTag] = useState(null);
+  const [evalDecisionLoading, setEvalDecisionLoading] = useState(null);
+  const [allEvaluations, setAllEvaluations] = useState([]);
+  const [evalSkillFilter, setEvalSkillFilter] = useState(null);
+  const [analysisView, setAnalysisView] = useState('list');
 
   useEffect(() => {
     fetchHarnessLogs().then(data => setLogs(data.logs || []));
     fetchHarnessBlueprints().then(data => setSkillList(data.skills || []));
     fetchHarnessAnalyses().then(data => setAnalysisList(data.reports || []));
     fetchHarnessReferences().then(data => setReferences(data.references || []));
+    fetchAllHarnessEvaluations().then(data => setAllEvaluations(data.evaluations || []));
   }, []);
 
   const todayLog = logs[0];
@@ -407,6 +417,42 @@ export default function HarnessLabPage() {
     const data = await fetchHarnessAnalysis(id);
     setAnalysisDetail(data);
     setLoading(false);
+  };
+
+  const handleGapDecision = async (ev, gapIndex, decision) => {
+    const key = `${ev.id}-${gapIndex}`;
+    setEvalDecisionLoading(key);
+    const existing = (ev.gap_decisions || []).filter(d => !(d.index === gapIndex && d.type === 'gap'));
+    const next = [...existing, { index: gapIndex, type: 'gap', decision }];
+    try {
+      await patchHarnessEvaluation(ev.id, next);
+      setSkillEvaluations(prev => prev.map(e => e.id === ev.id ? { ...e, gap_decisions: next } : e));
+    } finally {
+      setEvalDecisionLoading(null);
+    }
+  };
+
+  const handleDeleteEvaluation = async id => {
+    await deleteHarnessEvaluation(id);
+    setSkillEvaluations(prev => prev.filter(e => e.id !== id));
+  };
+
+  const handleAllEvalGapDecision = async (ev, gapIndex, decision) => {
+    const key = `${ev.id}-${gapIndex}`;
+    setEvalDecisionLoading(key);
+    const existing = (ev.gap_decisions || []).filter(d => !(d.index === gapIndex && d.type === 'gap'));
+    const next = [...existing, { index: gapIndex, type: 'gap', decision }];
+    try {
+      await patchHarnessEvaluation(ev.id, next);
+      setAllEvaluations(prev => prev.map(e => e.id === ev.id ? { ...e, gap_decisions: next } : e));
+    } finally {
+      setEvalDecisionLoading(null);
+    }
+  };
+
+  const handleAllDeleteEvaluation = async id => {
+    await deleteHarnessEvaluation(id);
+    setAllEvaluations(prev => prev.filter(e => e.id !== id));
   };
 
   const handleCopy = async (text, message) => {
@@ -460,8 +506,8 @@ export default function HarnessLabPage() {
         </section>
       </div>
 
-      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit">
-        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab]].map(([key, label]) => (
+      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit flex-wrap">
+        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab], ['evaluations', TEXT.evaluationsTab]].map(([key, label]) => (
           <button key={key} type="button" onClick={() => { setTab(key); setCopyStatus(''); if (key !== 'viz') setActiveViz(null); }} className={`px-4 py-2 text-sm rounded-lg ${tab === key ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
         ))}
       </div>
@@ -479,7 +525,7 @@ export default function HarnessLabPage() {
               <div className="flex gap-2 flex-wrap">
                 <button type="button" className="px-3 py-2 rounded-lg bg-violet-600 text-white text-sm" onClick={() => handleCopy(prompt, TEXT.copiedNextPrompt)}>{TEXT.copyPrompt}</button>
                 <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => handleCopy(logContent, TEXT.copiedWrapup)}>{TEXT.copyWrapup}</button>
-                <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('blueprint'); if (selectedDate) openBlueprint(selectedDate); }}>{TEXT.openBlueprint}</button>
+                <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => setTab('blueprint')}>{TEXT.openBlueprint}</button>
                 {blueprintViz && <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('viz'); setActiveViz(blueprintViz); }}>{TEXT.openViz}</button>}
               </div>
             </div>
@@ -519,41 +565,97 @@ export default function HarnessLabPage() {
               {/* 평가 이력 */}
               {skillEvaluations.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">아티클 평가 이력</p>
-                  {skillEvaluations.map((ev, i) => (
-                    <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-4 space-y-2.5">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <a href={ev.article_url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-violet-600 transition-colors">
-                          {ev.article_title}
-                        </a>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px] text-slate-400">{ev.date}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${
-                            ev.verdict === 'pass' ? 'bg-green-50 border-green-200 text-green-700' :
-                            ev.verdict === 'needs-work' ? 'bg-red-50 border-red-200 text-red-600' :
-                            'bg-amber-50 border-amber-200 text-amber-700'
-                          }`}>{ev.verdict}</span>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">아티클 인사이트</p>
+                  {skillEvaluations.map((ev, i) => {
+                    const isInsightFormat = ev.insights?.length > 0;
+                    const verdictStyle = v => v === 'pass' ? 'bg-green-50 border-green-200 text-green-700' : v === 'needs-work' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-amber-50 border-amber-200 text-amber-700';
+                    return (
+                      <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-4 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <a href={ev.article_url} target="_blank" rel="noopener noreferrer"
+                            className="text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-violet-600 transition-colors">
+                            {ev.article_title}
+                          </a>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] text-slate-400">{ev.date}</span>
+                            {!isInsightFormat && ev.verdict && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${verdictStyle(ev.verdict)}`}>{ev.verdict}</span>
+                            )}
+                            <button type="button" onClick={() => handleDeleteEvaluation(ev.id)}
+                              className="text-[10px] text-slate-300 hover:text-red-400 transition-colors leading-none" aria-label="삭제">✕</button>
+                          </div>
                         </div>
+
+                        {/* 새 형식: insights */}
+                        {isInsightFormat && (
+                          <ul className="space-y-1.5">
+                            {ev.insights.map((insight, j) => (
+                              <li key={j} className="flex gap-1.5 items-start text-xs text-slate-600 dark:text-slate-400">
+                                <span className="text-violet-300 shrink-0 mt-0.5">·</span>
+                                <span>{insight}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {/* 구 형식: verdict/gaps/suggestions */}
+                        {!isInsightFormat && ev.gaps?.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">갭</p>
+                            <ul className="space-y-1.5">
+                              {ev.gaps.map((g, j) => {
+                                const dec = (ev.gap_decisions || []).find(d => d.index === j && d.type === 'gap');
+                                const isLoading = evalDecisionLoading === `${ev.id}-${j}`;
+                                const decStyle = dec?.decision === 'adopt'
+                                  ? 'bg-green-100 text-green-700 border-green-200'
+                                  : dec?.decision === 'skip'
+                                  ? 'bg-gray-100 text-gray-500 border-gray-200'
+                                  : dec?.decision === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                  : null;
+                                return (
+                                  <li key={j} className="text-xs text-slate-600 dark:text-slate-400">
+                                    <div className="flex gap-1.5 items-start">
+                                      <span className="text-slate-300 shrink-0">·</span>
+                                      <span className="flex-1">{g}</span>
+                                      {decStyle && (
+                                        <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${decStyle}`}>
+                                          {dec.decision}
+                                          {dec.issue_number && <span className="ml-1 opacity-70">#{dec.issue_number}</span>}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {!dec && (
+                                      <div className="flex gap-1 mt-1 ml-3">
+                                        <button type="button" disabled={isLoading}
+                                          onClick={() => handleGapDecision(ev, j, 'adopt')}
+                                          className="text-[10px] px-2 py-0.5 rounded border border-green-200 text-green-600 hover:bg-green-50 disabled:opacity-40 transition-colors">
+                                          adopt
+                                        </button>
+                                        <button type="button" disabled={isLoading}
+                                          onClick={() => handleGapDecision(ev, j, 'skip')}
+                                          className="text-[10px] px-2 py-0.5 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                                          skip
+                                        </button>
+                                      </div>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                        {!isInsightFormat && ev.suggestions?.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">제안</p>
+                            <ul className="space-y-0.5">
+                              {ev.suggestions.map((s, j) => <li key={j} className="text-xs text-violet-600 dark:text-violet-400 before:content-['→'] before:mr-1.5">{s}</li>)}
+                            </ul>
+                          </div>
+                        )}
                       </div>
-                      {ev.gaps?.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">갭</p>
-                          <ul className="space-y-0.5">
-                            {ev.gaps.map((g, j) => <li key={j} className="text-xs text-slate-600 dark:text-slate-400 before:content-['·'] before:mr-1.5">{g}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {ev.suggestions?.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">제안</p>
-                          <ul className="space-y-0.5">
-                            {ev.suggestions.map((s, j) => <li key={j} className="text-xs text-violet-600 dark:text-violet-400 before:content-['→'] before:mr-1.5">{s}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -570,29 +672,42 @@ export default function HarnessLabPage() {
         </div>
       </div>}
 
-      {tab === 'analysis' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="space-y-2">
-          <h2 className="text-xs uppercase tracking-wider text-slate-400">{TEXT.reportList}</h2>
-          {analysisList.length === 0
-            ? <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400"><p>{TEXT.noAnalyses}</p><p className="text-xs mt-1 font-mono">{TEXT.runHarnessAnalysis}</p></div>
-            : analysisList.map(r => (
-              <button key={r.id} type="button" onClick={() => openAnalysis(r.id)}
-                className={`w-full text-left px-4 py-3 rounded-xl border bg-white dark:bg-[#111218] hover:border-violet-200 transition-colors ${selectedAnalysis === r.id ? 'border-violet-400' : ''}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">{r.date}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{r.git?.commit_count ?? 0}커밋</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1 font-mono truncate">{r.branch}</p>
-              </button>
-            ))
-          }
+      {tab === 'analysis' && <div className="space-y-4">
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-lg w-fit">
+          {[['list', '목록'], ['compare', '비교']].map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setAnalysisView(key)}
+              className={`px-3 py-1.5 text-xs rounded-md ${analysisView === key ? 'bg-white dark:bg-slate-700 shadow-sm font-medium' : 'text-slate-500'}`}>
+              {label}
+            </button>
+          ))}
         </div>
 
-        <div className="lg:col-span-2">
-          {loading && <div className="h-40 flex items-center justify-center"><div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>}
-          {!loading && !analysisDetail && <div className="h-64 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.pickAnalysis}</div>}
-          {!loading && !!analysisDetail && <AnalysisDetail report={analysisDetail} />}
-        </div>
+        {analysisView === 'list' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <h2 className="text-xs uppercase tracking-wider text-slate-400">{TEXT.reportList}</h2>
+            {analysisList.length === 0
+              ? <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400"><p>{TEXT.noAnalyses}</p><p className="text-xs mt-1 font-mono">{TEXT.runHarnessAnalysis}</p></div>
+              : analysisList.map(r => (
+                <button key={r.id} type="button" onClick={() => openAnalysis(r.id)}
+                  className={`w-full text-left px-4 py-3 rounded-xl border bg-white dark:bg-[#111218] hover:border-violet-200 transition-colors ${selectedAnalysis === r.id ? 'border-violet-400' : ''}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">{r.date}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{r.git?.commit_count ?? 0}커밋</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 font-mono truncate">{r.branch}</p>
+                </button>
+              ))
+            }
+          </div>
+
+          <div className="lg:col-span-2">
+            {loading && <div className="h-40 flex items-center justify-center"><div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>}
+            {!loading && !analysisDetail && <div className="h-64 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.pickAnalysis}</div>}
+            {!loading && !!analysisDetail && <AnalysisDetail report={analysisDetail} />}
+          </div>
+        </div>}
+
+        {analysisView === 'compare' && <HarnessCompareView reports={analysisList} loading={loading} />}
       </div>}
 
       {tab === 'references' && (() => {
@@ -677,6 +792,98 @@ export default function HarnessLabPage() {
         <div className="grid gap-3 md:grid-cols-2">{Object.entries(VIZ).map(([key, item]) => <button key={key} type="button" onClick={() => setActiveViz(key)} className="text-left px-4 py-4 rounded-2xl border bg-white dark:bg-[#111218]"><p className="text-sm font-semibold">{item.label}</p><p className="mt-1 text-xs text-slate-500">{item.hint}</p></button>)}</div>
         {!activeViz ? <div className="h-80 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.selectViz}</div> : <div className="space-y-3"><p className="text-sm text-slate-500">{VIZ[activeViz].hint}</p><div className="rounded-2xl border border-slate-200 overflow-hidden bg-white" style={{ height: '78vh' }}><iframe key={activeViz} src={`/viz/${activeViz}.html`} className="w-full h-full border-0" title={activeViz} sandbox="allow-scripts allow-same-origin" /></div></div>}
       </div>}
+
+      {tab === 'evaluations' && (() => {
+        const evalSkills = [...new Set(allEvaluations.map(e => e.skill))];
+        const filteredEvals = evalSkillFilter ? allEvaluations.filter(e => e.skill === evalSkillFilter) : allEvaluations;
+        return (
+          <div className="space-y-4">
+            {evalSkills.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {evalSkills.map(skill => (
+                  <button key={skill} type="button" onClick={() => setEvalSkillFilter(evalSkillFilter === skill ? null : skill)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-mono font-semibold border transition-colors ${evalSkillFilter === skill ? 'bg-violet-600 text-white border-violet-600' : 'border-slate-200 text-slate-500 hover:border-violet-300'}`}>
+                    {skill}
+                  </button>
+                ))}
+              </div>
+            )}
+            {filteredEvals.length === 0
+              ? <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-400"><p>{TEXT.noEvaluations}</p></div>
+              : <div className="space-y-3">
+                  {filteredEvals.map(ev => {
+                    const verdictStyle = v => v === 'pass' ? 'bg-green-50 border-green-200 text-green-700' : v === 'needs-work' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-amber-50 border-amber-200 text-amber-700';
+                    return (
+                      <div key={ev.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-4 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <a href={ev.article_url} target="_blank" rel="noopener noreferrer"
+                            className="text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-violet-600 transition-colors">
+                            {ev.article_title}
+                          </a>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] text-slate-400">{ev.date}</span>
+                            <span className="font-mono text-[10px] text-slate-500">{ev.skill}</span>
+                            {ev.verdict && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${verdictStyle(ev.verdict)}`}>{ev.verdict}</span>
+                            )}
+                            <button type="button" onClick={() => handleAllDeleteEvaluation(ev.id)}
+                              className="text-[10px] text-slate-300 hover:text-red-400 transition-colors leading-none" aria-label="평가 삭제">✕</button>
+                          </div>
+                        </div>
+                        {ev.gaps?.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">갭</p>
+                            <ul className="space-y-1.5">
+                              {ev.gaps.map((g, j) => {
+                                const dec = (ev.gap_decisions || []).find(d => d.index === j && d.type === 'gap');
+                                const isLoading = evalDecisionLoading === `${ev.id}-${j}`;
+                                const decStyle = dec?.decision === 'adopt'
+                                  ? 'bg-green-100 text-green-700 border-green-200'
+                                  : dec?.decision === 'skip'
+                                  ? 'bg-gray-100 text-gray-500 border-gray-200'
+                                  : dec?.decision === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                  : null;
+                                return (
+                                  <li key={j} className="text-xs text-slate-600 dark:text-slate-400">
+                                    <div className="flex gap-1.5 items-start">
+                                      <span className="text-slate-300 shrink-0">·</span>
+                                      <span className="flex-1">{g}</span>
+                                      {decStyle && (
+                                        <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${decStyle}`}>
+                                          {dec.decision}
+                                          {dec.issue_number && <span className="ml-1 opacity-70">#{dec.issue_number}</span>}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {!dec && (
+                                      <div className="flex gap-1 mt-1 ml-3">
+                                        <button type="button" disabled={isLoading}
+                                          onClick={() => handleAllEvalGapDecision(ev, j, 'adopt')}
+                                          className="text-[10px] px-2 py-0.5 rounded border border-green-200 text-green-600 hover:bg-green-50 disabled:opacity-40 transition-colors">
+                                          adopt
+                                        </button>
+                                        <button type="button" disabled={isLoading}
+                                          onClick={() => handleAllEvalGapDecision(ev, j, 'skip')}
+                                          className="text-[10px] px-2 py-0.5 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                                          skip
+                                        </button>
+                                      </div>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+            }
+          </div>
+        );
+      })()}
     </div>
   );
 }

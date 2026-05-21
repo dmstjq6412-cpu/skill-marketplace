@@ -56,6 +56,17 @@ export const deleteHarnessReference = (id) =>
 export const fetchHarnessEvaluations = (skill) =>
   api.get(`/harness/evaluations/${skill}`).then(r => r.data);
 
+export const fetchAllHarnessEvaluations = (skill) =>
+  api.get('/harness/evaluations', { params: skill ? { skill } : {} }).then(r => r.data);
+
+
+export const patchHarnessEvaluation = (id, gap_decisions) =>
+  api.patch(`/harness/evaluations/${id}`, { gap_decisions }).then(r => r.data);
+
+export const deleteHarnessEvaluation = (id) =>
+  api.delete(`/harness/evaluations/${id}`).then(r => r.data);
+
+
 export const fetchMe = () =>
   api.get('/auth/me').then(r => r.data);
 
@@ -64,6 +75,9 @@ export const exchangeAuthCode = (code) =>
 
 export const loginWithCliToken = (token) =>
   api.post('/auth/cli', { token }).then(r => r.data);
+
+export const fetchSystemMap = () =>
+  api.get('/harness/system-map').then(r => r.data);
 
 export const getGithubLoginUrl = () => {
   const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;

@@ -3,6 +3,9 @@ import { getPool } from '../db/database.js';
 
 const router = express.Router();
 
+// @feature skill-download
+// @desc 스킬 파일 다운로드 (카운터 증가 + 파일 전송)
+// @flow GET /:id/download → DB에서 파일 로드 + 다운로드 카운터 증가 → binary 응답
 // GET /api/skills/:id/download
 router.get('/:id/download', async (req, res) => {
   const pool = getPool();

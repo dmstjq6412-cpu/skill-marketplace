@@ -5,6 +5,7 @@ description: >
   이전 세션 컨텍스트를 요약 브리핑하고, 다음 작업을 추천합니다.
   HarnessLabPage UI의 핸드오프 흐름과 동기화되어 있습니다.
 version: 2.0.0
+cost: light # 파일 2~3개 읽고 출력, 서브에이전트 없음
 ---
 
 # Harness Resume — 이전 세션 컨텍스트 복원
@@ -13,6 +14,20 @@ version: 2.0.0
 Marketplace의 Harness Lab 페이지(`HarnessLabPage.jsx`)의 "오늘 인계" 카드와 동일한 컨텍스트를 CLI 환경에서 제공합니다.
 
 ## 실행 절차
+
+### 0. North Star 확인
+
+`.harness-lab/north-star.md` 를 읽고 아래 형식으로 먼저 출력합니다:
+
+```
+⭐ North Star
+존재 이유: {존재 이유}
+지금 피봇: {지금 피봇}
+
+오늘 하려는 작업이 피봇과 맞나요?
+```
+
+파일이 없으면 이 단계를 건너뜁니다.
 
 ### 1. 최근 일지 파일 목록 확인
 

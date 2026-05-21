@@ -4,7 +4,8 @@ description: >
   Harness Lab 참고자료 저장 스킬. URL을 받아 내용을 요약하고
   태그를 제안한 뒤 사용자 확인 후 .harness-lab/references/에 저장하고
   원격 서버에 업로드합니다.
-version: 1.0.0
+version: 1.1.0
+cost: medium # WebFetch + 요약 + 선택적 스킬 평가
 ---
 
 # Harness Reference — 참고자료 저장
@@ -59,29 +60,31 @@ WebFetch로 URL 내용을 가져옵니다.
 
 사용자가 "ㅇㅇ" / "ok" 로 승인하거나 수정하면 저장을 진행합니다.
 
-### 4. 즉시 스킬 평가 (스킬 연결된 경우)
+### 4. 인사이트 추출 (스킬 연결된 경우)
 
-연결된 스킬이 있으면 `.claude/skills/{skill-name}/skill.md` 를 읽고 아티클 summary 기준으로 평가합니다.
+연결된 스킬이 있으면 `.claude/skills/{skill-name}/SKILL.md` 를 읽고, 아티클의 관점에서 스킬을 바라보며 인사이트를 추출합니다.
 
-평가 기준:
-- 아티클의 핵심 원칙/주장을 기준으로 현재 스킬이 어떤 부분을 충족하는지 확인
-- Golden Rule (코드 통제 + 토큰 밸런스) 기준으로 판단
+**판정하지 않는다.** 아티클이 옳고 스킬이 틀렸다는 식의 평가가 아니라, 아티클의 렌즈가 스킬에서 무엇을 보이게 하는지를 관찰합니다.
+
+인사이트 작성 기준:
+- 아티클의 핵심 주장이 우리 스킬에 어떤 질문을 던지는가
+- 아티클의 관점에서만 보이는 것 (경험만으로는 보기 어려운 것)
+- "해야 한다"가 아닌 "이런 측면이 있다" 형태로 작성
+- 3~5개, 각 한 줄
 
 출력 후 사용자 확인:
 ```
-[평가 결과]
-verdict: pass / partial / needs-work
-gaps:
-  - {빠진 것 또는 약한 부분}
-suggestions:
-  - {구체적 개선 방향 한 줄}
+[인사이트]
+- {관찰 1}
+- {관찰 2}
+- ...
 
 저장할까요?
 ```
 
-사용자가 승인하면 평가 결과를 저장합니다.
+사용자가 승인하면 인사이트를 저장합니다.
 
-평가 결과 로컬 저장 경로: `.harness-lab/evaluations/YYYY-MM-DD-{skill}.json`
+인사이트 로컬 저장 경로: `.harness-lab/evaluations/YYYY-MM-DD-{skill}.json`
 
 ```json
 {
@@ -89,29 +92,27 @@ suggestions:
   "date": "YYYY-MM-DD",
   "article_title": "...",
   "article_url": "https://...",
-  "gaps": ["검증 자동화 훅 없음"],
-  "suggestions": ["PreCommit 훅에서 테스트 실행 강제화"],
-  "verdict": "partial"
+  "insights": [
+    "이 아티클은 검증 병목 관점에서 바라볼 때, 테스트 실행을 git-guard에 위임하는 구조가 병목 위치를 명확히 하는 효과가 있음을 보여준다",
+    "..."
+  ]
 }
 ```
 
-평가 저장 후 `.harness-lab/evaluations/{skill}-summary.md` 에 한 줄 append합니다 (파일 없으면 헤더 포함 생성):
+인사이트 저장 후 `.harness-lab/evaluations/{skill}-summary.md` 에 한 줄 append합니다 (파일 없으면 헤더 포함 생성):
 
 ```markdown
-# {skill} 평가 요약
+# {skill} 인사이트
 
-- [YYYY-MM-DD] {verdict} | {article_title} | {gap 한 줄}
-  → "{아티클의 핵심 관점 한 구절}" 관점
+- [YYYY-MM-DD] {article_title}
+  → "{아티클의 핵심 관점 한 구절}" 렌즈 | {핵심 인사이트 한 줄}
 ```
 
 예시:
 ```markdown
-- [2026-04-10] partial | Code Agent Orchestra | 검증 자동화 훅 없음
-  → "병목이 코드 생성에서 검증으로 이동" 관점
+- [2026-04-10] Code Agent Orchestra
+  → "병목이 코드 생성에서 검증으로 이동" 렌즈 | 테스트 실행 위임 구조가 병목 위치를 명확히 함
 ```
-
-- 각 gap이 여러 개면 가장 임팩트 있는 것 하나만 summary 라인에 기록 (나머지는 JSON 원본에 보존)
-- 관점 구절은 아티클 summary에서 직접 인용
 
 원격 서버 업로드 (node 인라인 스크립트):
 ```bash
@@ -120,7 +121,7 @@ const fs = require('fs');
 const https = require('https');
 const BASE = process.env.VITE_API_URL || 'https://skill-marketplace-umzq.onrender.com';
 
-const eval_ = JSON.parse(fs.readFileSync('<평가파일경로>', 'utf8'));
+const eval_ = JSON.parse(fs.readFileSync('<인사이트파일경로>', 'utf8'));
 const data = JSON.stringify(eval_);
 const url = new URL('/api/harness/evaluations', BASE);
 const req = https.request(url, {

@@ -52,7 +52,7 @@ describe('authenticate', () => {
     authenticate(req, res, next);
 
     expect(jwt.verify).toHaveBeenCalledWith('valid.token.here', expect.any(String));
-    expect(req.user).toEqual(mockPayload);
+    expect(req.user).toEqual({ github_id: '42', username: 'alice' });
     expect(next).toHaveBeenCalledOnce();
     expect(res.status).not.toHaveBeenCalled();
   });
@@ -66,6 +66,28 @@ describe('authenticate', () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'Invalid or expired token' });
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it('github_id가 number이면 string으로 변환', () => {
+    const mockPayload = { github_id: 42, username: 'alice' };
+    req.headers.authorization = 'Bearer valid.token.here';
+    jwt.verify.mockReturnValue(mockPayload);
+
+    authenticate(req, res, next);
+
+    expect(req.user.github_id).toBe('42');
+    expect(next).toHaveBeenCalledOnce();
+  });
+
+  it('github_id가 null/undefined이면 그대로 유지', () => {
+    const mockPayloadNull = { github_id: null, username: 'bob' };
+    req.headers.authorization = 'Bearer valid.token.here';
+    jwt.verify.mockReturnValue(mockPayloadNull);
+
+    authenticate(req, res, next);
+
+    expect(req.user.github_id).toBeNull();
+    expect(next).toHaveBeenCalledOnce();
   });
 });
 
