@@ -67,6 +67,29 @@ const SYSTEM_MAP = {
       ],
     },
   ],
+  features: [
+    {
+      name: 'harness-log',
+      desc: '하네스 세션 로그를 DB에 저장하고 조회한다',
+      flow: 'GET /logs → DB 조회 → 목록 반환',
+      req_slug: 'system-map-view',
+      routes: [
+        { method: 'GET', path: '/logs', auth: false },
+        { method: 'POST', path: '/logs', auth: false },
+      ],
+      tests: ['로그 목록을 반환한다', '로그 없으면 빈 배열 반환'],
+    },
+    {
+      name: 'harness-eval',
+      desc: '평가 항목을 삭제한다',
+      flow: 'DELETE /evaluations/:id → 인증 → DB 삭제',
+      req_slug: null,
+      routes: [
+        { method: 'DELETE', path: '/evaluations/:id', auth: true },
+      ],
+      tests: ['평가를 삭제한다'],
+    },
+  ],
 };
 
 // Import component AFTER mocks (Red 단계 — 파일 미존재, 실패 정상)
@@ -307,6 +330,263 @@ describe('SystemStructurePage — REQ 뱃지 (AC-3, AC-4)', () => {
         document.querySelector('[data-testid="no-req"]') ||
         screen.queryByText(/REQ 없음|no req/i);
       expect(noReqEl).not.toBeNull();
+    });
+  });
+});
+
+// ============================================================
+// 탭 전환 UI (TD-2: 기능 지도 / API 목록)
+// ============================================================
+describe('SystemStructurePage — 탭 전환 UI', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchSystemMap.mockResolvedValue(SYSTEM_MAP);
+  });
+
+  it('기능 지도 탭과 API 목록 탭 버튼이 둘 다 렌더링된다 (TD-2)', async () => {
+    // 두 관점(기능 지도 / API 목록)을 전환할 수 있는 탭 버튼이 있어야 한다
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabButtons = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabButtons.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('기본 탭은 기능 지도다 (TD-2)', async () => {
+    // 페이지 진입 시 기능 지도 탭이 기본으로 활성화되어야 한다
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const activeTab =
+        document.querySelector('[role="tab"][aria-selected="true"]') ||
+        document.querySelector('[data-tab="feature-map"].active') ||
+        document.querySelector('[data-tab="feature-map"][aria-current]');
+      expect(activeTab).not.toBeNull();
+    });
+  });
+});
+
+// ============================================================
+// 기능 지도 탭 — feature 카드 렌더링 (AC-1, AC-2, AC-3)
+// ============================================================
+describe('SystemStructurePage — 기능 지도 feature 카드', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchSystemMap.mockResolvedValue(SYSTEM_MAP);
+  });
+
+  it('fixtures의 feature 수만큼 카드가 렌더링된다 (AC-1, AC-2)', async () => {
+    // features 배열 항목 수와 렌더링된 카드 수가 일치해야 그룹핑 로직이 올바른 것이다
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const cards = document.querySelectorAll('[data-feature-card]');
+      expect(cards.length).toBe(SYSTEM_MAP.features.length);
+    });
+  });
+
+  it('각 feature 카드에 name이 표시된다 (AC-3)', async () => {
+    // 카드 제목이 없으면 어떤 기능인지 파악할 수 없다
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      SYSTEM_MAP.features.forEach(feature => {
+        const cards = document.querySelectorAll('[data-feature-card]');
+        const found = Array.from(cards).some(c => c.textContent.includes(feature.name));
+        expect(found).toBe(true);
+      });
+    });
+  });
+
+  it('각 feature 카드에 desc가 표시된다 (AC-3)', async () => {
+    // desc가 있는 feature는 설명이 카드에 노출되어야 한다
+    render(<SystemStructurePage />);
+
+    const featuresWithDesc = SYSTEM_MAP.features.filter(f => f.desc);
+    await waitFor(() => {
+      featuresWithDesc.forEach(feature => {
+        const cards = document.querySelectorAll('[data-feature-card]');
+        const found = Array.from(cards).some(c => c.textContent.includes(feature.desc));
+        expect(found).toBe(true);
+      });
+    });
+  });
+
+  it('각 feature 카드에 포함 라우트 수가 표시된다 (AC-3)', async () => {
+    // 라우트 수를 표시해 해당 기능의 규모를 카드 수준에서 파악할 수 있어야 한다
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      SYSTEM_MAP.features.forEach(feature => {
+        const routeCount = feature.routes.length;
+        const cards = document.querySelectorAll('[data-feature-card]');
+        const found = Array.from(cards).some(c =>
+          c.textContent.includes(String(routeCount))
+        );
+        expect(found).toBe(true);
+      });
+    });
+  });
+
+  it('req_slug가 있는 feature 카드에는 REQ 뱃지가 표시된다 (AC-5)', async () => {
+    // @req로 연결된 feature는 REQ 뱃지가 있어야 코드↔문서 추적이 가능하다
+    render(<SystemStructurePage />);
+
+    const featuresWithReq = SYSTEM_MAP.features.filter(f => f.req_slug);
+    await waitFor(() => {
+      featuresWithReq.forEach(feature => {
+        const cards = document.querySelectorAll('[data-feature-card]');
+        const card = Array.from(cards).find(c => c.textContent.includes(feature.name));
+        expect(card).toBeDefined();
+        const badge =
+          card.querySelector('[data-testid="req-badge"]') ||
+          card.querySelector('[data-req-badge]');
+        expect(badge).not.toBeNull();
+      });
+    });
+  });
+});
+
+// ============================================================
+// 기능 지도 탭 — feature 카드 펼침 (AC-4, AC-9)
+// ============================================================
+describe('SystemStructurePage — feature 카드 펼침', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchSystemMap.mockResolvedValue(SYSTEM_MAP);
+  });
+
+  it('카드를 펼치면 해당 feature의 라우트 수만큼 행이 표시된다 (AC-4)', async () => {
+    // 펼쳤을 때 라우트 목록이 feature.routes 수와 일치해야 한다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const cards = document.querySelectorAll('[data-feature-card]');
+      expect(cards.length).toBeGreaterThan(0);
+    });
+
+    const firstFeature = SYSTEM_MAP.features[0];
+    const cards = document.querySelectorAll('[data-feature-card]');
+    const firstCard = Array.from(cards).find(c => c.textContent.includes(firstFeature.name));
+
+    const toggle = firstCard.querySelector('[data-toggle], button');
+    if (toggle) await user.click(toggle);
+
+    await waitFor(() => {
+      const routeRows = firstCard.querySelectorAll('[data-route-row]');
+      expect(routeRows.length).toBe(firstFeature.routes.length);
+    });
+  });
+
+  it('펼친 라우트 목록에 method·path·auth가 표시된다 (AC-4)', async () => {
+    // 라우트 상세(method, path, auth)가 모두 표시되어야 엔드포인트를 식별할 수 있다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const cards = document.querySelectorAll('[data-feature-card]');
+      expect(cards.length).toBeGreaterThan(0);
+    });
+
+    const firstFeature = SYSTEM_MAP.features[0];
+    const cards = document.querySelectorAll('[data-feature-card]');
+    const firstCard = Array.from(cards).find(c => c.textContent.includes(firstFeature.name));
+
+    const toggle = firstCard.querySelector('[data-toggle], button');
+    if (toggle) await user.click(toggle);
+
+    await waitFor(() => {
+      firstFeature.routes.forEach(route => {
+        expect(firstCard.textContent).toContain(route.method);
+        expect(firstCard.textContent).toContain(route.path);
+      });
+    });
+  });
+
+  it('카드를 펼치면 해당 feature의 테스트 케이스 이름 목록이 표시된다 (AC-9)', async () => {
+    // 테스트 케이스 이름이 표시되어야 "이 기능에 어떤 테스트가 있는가"를 파악할 수 있다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const cards = document.querySelectorAll('[data-feature-card]');
+      expect(cards.length).toBeGreaterThan(0);
+    });
+
+    const firstFeature = SYSTEM_MAP.features[0];
+    const cards = document.querySelectorAll('[data-feature-card]');
+    const firstCard = Array.from(cards).find(c => c.textContent.includes(firstFeature.name));
+
+    const toggle = firstCard.querySelector('[data-toggle], button');
+    if (toggle) await user.click(toggle);
+
+    await waitFor(() => {
+      firstFeature.tests.forEach(testName => {
+        expect(firstCard.textContent).toContain(testName);
+      });
+    });
+  });
+});
+
+// ============================================================
+// API 목록 탭 회귀 방지 (AC-6, AC-8)
+// ============================================================
+describe('SystemStructurePage — API 목록 탭 회귀', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchSystemMap.mockResolvedValue(SYSTEM_MAP);
+  });
+
+  it('API 목록 탭 전환 시 도메인 섹션이 표시된다 (AC-6)', async () => {
+    // 탭 전환 후에도 기존 도메인·라우트 테이블이 정상 동작해야 한다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabs = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabs.length).toBeGreaterThanOrEqual(2);
+    });
+
+    // API 목록 탭 클릭
+    const apiTab =
+      document.querySelector('[data-tab="api-list"]') ||
+      Array.from(document.querySelectorAll('[role="tab"]')).find(t =>
+        t.textContent.match(/API 목록|api/i)
+      );
+    if (apiTab) await user.click(apiTab);
+
+    await waitFor(() => {
+      const domainSections = document.querySelectorAll('[data-domain]');
+      expect(domainSections.length).toBe(SYSTEM_MAP.domains.length);
+    });
+  });
+
+  it('@feature 없는 라우트는 API 목록 탭에만 표시된다 (AC-8)', async () => {
+    // @feature가 없는 라우트는 기능 지도 탭에서 보이지 않고 API 목록 탭에서만 보여야 한다
+    // features에 속하지 않는 라우트(auth 도메인 전체 — fixture에서 features에 포함 안 됨)를 기준으로 검증
+    const featureRoutes = SYSTEM_MAP.features.flatMap(f => f.routes.map(r => r.path));
+    const allRoutes = SYSTEM_MAP.domains.flatMap(d => d.routes.map(r => r.path));
+    const noFeatureRoutePaths = allRoutes.filter(p => !featureRoutes.includes(p));
+
+    // noFeatureRoutePaths 가 있어야 이 테스트가 유효하다
+    expect(noFeatureRoutePaths.length).toBeGreaterThan(0);
+
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      // 기능 지도 탭(기본)에서는 @feature 없는 라우트의 path가 보이지 않아야 한다
+      const featureMapSection = document.querySelector('[data-tab-panel="feature-map"]');
+      if (featureMapSection) {
+        noFeatureRoutePaths.forEach(path => {
+          expect(featureMapSection.textContent).not.toContain(path);
+        });
+      }
     });
   });
 });

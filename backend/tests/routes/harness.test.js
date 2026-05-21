@@ -414,6 +414,19 @@ const SYSTEM_MAP_JSON = {
       ],
     },
   ],
+  features: [
+    {
+      name: 'harness-log',
+      desc: '하네스 세션 로그를 DB에 저장하고 조회한다',
+      flow: 'GET /logs → DB 조회 → 목록 반환 / POST /logs → 유효성 검사 → DB 저장',
+      req_slug: 'system-map-view',
+      routes: [
+        { method: 'GET', path: '/logs', auth: false },
+        { method: 'POST', path: '/logs', auth: false },
+      ],
+      tests: ['로그 목록을 반환', '로그 없으면 빈 배열 반환'],
+    },
+  ],
 };
 
 describe('GET /system-map', () => {
@@ -459,6 +472,36 @@ describe('GET /system-map', () => {
     const res = await request(buildApp()).get('/system-map');
     expect(res.status).toBe(500);
     expect(res.body).toHaveProperty('error');
+  });
+
+  it('features 배열이 응답에 포함된다 (AC-7)', async () => {
+    // AC-7: GET /api/harness/system-map 응답에 features 배열이 포함되어야 한다
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('features');
+    expect(Array.isArray(res.body.features)).toBe(true);
+  });
+
+  it('features 배열의 각 항목은 name, desc, flow, req_slug, routes, tests 필드를 가진다 (AC-7)', async () => {
+    // AC-7: features 항목의 스키마가 { name, desc, flow, req_slug, routes, tests }여야 한다
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    const feature = res.body.features[0];
+    expect(feature).toHaveProperty('name', SYSTEM_MAP_JSON.features[0].name);
+    expect(feature).toHaveProperty('desc', SYSTEM_MAP_JSON.features[0].desc);
+    expect(feature).toHaveProperty('flow', SYSTEM_MAP_JSON.features[0].flow);
+    expect(feature).toHaveProperty('req_slug', SYSTEM_MAP_JSON.features[0].req_slug);
+    expect(Array.isArray(feature.routes)).toBe(true);
+    expect(Array.isArray(feature.tests)).toBe(true);
+  });
+
+  it('@feature 주석이 있는 라우트가 있으면 features 배열이 비어있지 않다 (AC-1)', async () => {
+    // AC-1: @feature 주석이 파싱된 경우 features 배열에 항목이 존재해야 한다
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    expect(res.body.features.length).toBeGreaterThan(0);
+    expect(res.body.features[0].name).toBe(SYSTEM_MAP_JSON.features[0].name);
   });
 });
 
