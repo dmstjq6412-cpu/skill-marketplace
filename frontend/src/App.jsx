@@ -4,6 +4,7 @@ import SkillListPage from './pages/SkillListPage';
 import SkillDetailPage from './pages/SkillDetailPage';
 import UploadPage from './pages/UploadPage';
 import HarnessLabPage from './pages/HarnessLabPage';
+import SystemStructurePage from './pages/SystemStructurePage';
 import { fetchMe, getGithubLoginUrl, exchangeAuthCode } from './api/client';
 
 function SunIcon() {
@@ -81,6 +82,7 @@ export default function App() {
 
   const isUpload = location.pathname === '/upload';
   const isLab = location.pathname === '/lab';
+  const isSystem = location.pathname === '/system-structure';
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-[#09090f]" style={{ transition: 'background-color 0.3s ease' }}>
@@ -124,6 +126,16 @@ export default function App() {
               }`}
             >
               Harness Lab
+            </Link>
+            <Link
+              to="/system-structure"
+              className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-150 ${
+                isSystem
+                  ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              My System Structure
             </Link>
             <Link
               to="/upload"
@@ -178,6 +190,7 @@ export default function App() {
           <Route path="/skills/:id" element={<SkillDetailPage user={user} />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/lab" element={<HarnessLabPage />} />
+          <Route path="/system-structure" element={<SystemStructurePage />} />
           <Route path="/auth/callback" element={<AuthCallback onLogin={setUser} />} />
         </Routes>
       </main>

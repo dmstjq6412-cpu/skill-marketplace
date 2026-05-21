@@ -3,8 +3,10 @@ import request from 'supertest';
 import express from 'express';
 
 const mockPool = vi.hoisted(() => ({ query: vi.fn() }));
+const mockExecSync = vi.hoisted(() => vi.fn());
 vi.mock('../../src/db/database.js', () => ({ getPool: () => mockPool }));
 vi.mock('../../src/middleware/auth.js', () => ({ authenticate: (req, res, next) => next() }));
+vi.mock('child_process', () => ({ execSync: mockExecSync }));
 
 const { default: harnessRouter } = await import('../../src/routes/harness.js');
 
@@ -386,6 +388,77 @@ describe('DELETE /evaluations/:id', () => {
     const res = await request(buildApp()).delete('/evaluations/9999');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Not found');
+  });
+});
+
+// ============================================================
+// GET /system-map — 시스템 맵 JSON 반환 (AC-6)
+// ============================================================
+
+const SYSTEM_MAP_JSON = {
+  generated_at: '2026-05-21',
+  domains: [
+    {
+      name: 'harness',
+      routes: [
+        {
+          method: 'GET',
+          path: '/logs',
+          description: 'GET /api/harness/logs 로그 목록 반환',
+          auth: false,
+          logic: 'harness.js:9',
+          client_fn: { name: 'fetchHarnessLogs', line: 32 },
+          test_file: 'backend/tests/routes/harness.test.js',
+          req_slug: 'system-map-view',
+        },
+      ],
+    },
+  ],
+};
+
+describe('GET /system-map', () => {
+  beforeEach(() => mockExecSync.mockReset());
+
+  it('200과 구조화된 JSON을 반환한다 — generated_at, domains 배열 포함', async () => {
+    // AC-6: GET /api/harness/system-map 호출 시 구조화된 JSON 반환
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('generated_at');
+    expect(res.body).toHaveProperty('domains');
+    expect(Array.isArray(res.body.domains)).toBe(true);
+  });
+
+  it('domains 배열의 각 항목은 name과 routes를 가진다', async () => {
+    // 프론트엔드가 도메인별 그룹핑을 할 수 있는 구조여야 한다
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    const domain = res.body.domains[0];
+    expect(domain).toHaveProperty('name');
+    expect(domain).toHaveProperty('routes');
+    expect(Array.isArray(domain.routes)).toBe(true);
+  });
+
+  it('routes 배열의 각 항목은 필수 필드를 가진다', async () => {
+    // 프론트엔드가 method, path, description, auth, logic, test_file, req_slug를 렌더링해야 한다
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    const route = res.body.domains[0].routes[0];
+    expect(route).toHaveProperty('method');
+    expect(route).toHaveProperty('path');
+    expect(route).toHaveProperty('description');
+    expect(route).toHaveProperty('auth');
+    expect(route).toHaveProperty('logic');
+    expect(route).toHaveProperty('test_file');
+    expect(route).toHaveProperty('req_slug');
+  });
+
+  it('스크립트가 유효하지 않은 JSON을 반환하면 500을 반환한다', async () => {
+    // generate-system-map.js 출력이 파싱 불가능한 경우 클라이언트에게 명확한 에러를 반환해야 한다
+    mockExecSync.mockReturnValue('invalid json {{{');
+    const res = await request(buildApp()).get('/system-map');
+    expect(res.status).toBe(500);
+    expect(res.body).toHaveProperty('error');
   });
 });
 
