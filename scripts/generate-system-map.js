@@ -11,6 +11,8 @@ const ROUTES_DIR = path.join(ROOT, 'backend/src/routes');
 const CLIENT_FILE = path.join(ROOT, 'frontend/src/api/client.js');
 const TESTS_BACKEND = path.join(ROOT, 'backend/tests/routes');
 const REQ_DIR = path.join(ROOT, 'docs/requirements');
+const SCHEMA_FILE = path.join(ROOT, 'backend/src/db/schema.sql');
+const APP_JSX_FILE = path.join(ROOT, 'frontend/src/App.jsx');
 const OUTPUT = path.join(ROOT, 'system-map.md');
 
 function buildReqMap() {
@@ -43,6 +45,8 @@ function parseRoutes(file) {
     desc:    /^\/\/\s*@desc\s+(.+)/,
     flow:    /^\/\/\s*@flow\s+(.+)/,
     req:     /^\/\/\s*@req\s+(.+)/,
+    table:   /^\/\/\s*@table\s+(.+)/,
+    page:    /^\/\/\s*@page\s+(.+)/,
   };
 
   lines.forEach((line, i) => {
@@ -52,7 +56,7 @@ function parseRoutes(file) {
     const path_ = match[2];
     const hasAuth = authPattern.test(line);
 
-    const annotations = { feature: null, desc: null, flow: null, req_slug: null };
+    const annotations = { feature: null, desc: null, flow: null, req_slug: null, table: null, page: null };
     let description = '';
 
     for (let j = i - 1; j >= Math.max(0, i - 8); j--) {
@@ -80,14 +84,44 @@ function parseRoutes(file) {
       }
     }
 
+    const tables = annotations.table ? annotations.table.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const pages  = annotations.page  ? annotations.page.split(',').map(p => p.trim()).filter(Boolean)  : [];
+
     routes.push({
       method, path: path_, line: i + 1, auth: hasAuth, description,
       feature: annotations.feature, desc: annotations.desc,
       flow: annotations.flow, req_slug: annotations.req_slug,
+      tables, pages,
     });
   });
 
   return routes;
+}
+
+function parseSchema() {
+  try {
+    const content = fs.readFileSync(SCHEMA_FILE, 'utf8');
+    const tablePattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/gi;
+    const tables = [];
+    let m;
+    while ((m = tablePattern.exec(content)) !== null) tables.push(m[1]);
+    return tables;
+  } catch {
+    return [];
+  }
+}
+
+function parseAppRoutes() {
+  try {
+    const content = fs.readFileSync(APP_JSX_FILE, 'utf8');
+    const routePattern = /<Route\s+[^>]*path="([^"]+)"/g;
+    const paths = [];
+    let m;
+    while ((m = routePattern.exec(content)) !== null) paths.push(m[1]);
+    return paths;
+  } catch {
+    return [];
+  }
 }
 
 // 테스트 파일에서 it() 설명 목록 추출
@@ -126,6 +160,8 @@ function buildFeatures(allRouteGroups) {
           req_slug: route.req_slug || null,
           routes: [],
           tests: [...testCases],
+          tables: [],
+          pages: [],
         });
       } else {
         const existing = featureMap.get(name);
@@ -134,11 +170,10 @@ function buildFeatures(allRouteGroups) {
         if (!existing.req_slug && route.req_slug) existing.req_slug = route.req_slug;
         testCases.forEach(t => { if (!existing.tests.includes(t)) existing.tests.push(t); });
       }
-      featureMap.get(name).routes.push({
-        method: route.method,
-        path: route.path,
-        auth: route.auth,
-      });
+      const feat = featureMap.get(name);
+      feat.routes.push({ method: route.method, path: route.path, auth: route.auth });
+      (route.tables || []).forEach(t => { if (!feat.tables.includes(t)) feat.tables.push(t); });
+      (route.pages  || []).forEach(p => { if (!feat.pages.includes(p))  feat.pages.push(p);  });
     }
   }
 
@@ -217,7 +252,9 @@ function main() {
     }
 
     const features = buildFeatures(allRouteGroups);
-    process.stdout.write(JSON.stringify({ generated_at: now, domains, features }));
+    const db_tables = parseSchema();
+    const frontend_routes = parseAppRoutes();
+    process.stdout.write(JSON.stringify({ generated_at: now, db_tables, frontend_routes, domains, features }));
     return;
   }
 

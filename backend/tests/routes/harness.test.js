@@ -397,6 +397,8 @@ describe('DELETE /evaluations/:id', () => {
 
 const SYSTEM_MAP_JSON = {
   generated_at: '2026-05-21',
+  db_tables: ['skills', 'skill_files', 'harness_logs', 'harness_blueprints', 'harness_viz', 'harness_analysis', 'harness_references', 'harness_evaluations'],
+  frontend_routes: ['/', '/skills/:id', '/upload', '/lab', '/system-structure', '/auth/callback'],
   domains: [
     {
       name: 'harness',
@@ -425,6 +427,8 @@ const SYSTEM_MAP_JSON = {
         { method: 'POST', path: '/logs', auth: false },
       ],
       tests: ['로그 목록을 반환', '로그 없으면 빈 배열 반환'],
+      tables: ['harness_logs'],
+      pages: ['/lab'],
     },
   ],
 };
@@ -502,6 +506,44 @@ describe('GET /system-map', () => {
     const res = await request(buildApp()).get('/system-map');
     expect(res.body.features.length).toBeGreaterThan(0);
     expect(res.body.features[0].name).toBe(SYSTEM_MAP_JSON.features[0].name);
+  });
+
+  it('응답에 db_tables 배열이 포함된다 (AC-4)', async () => {
+    // AC-4: schema.sql에서 파싱된 테이블 목록이 응답에 포함되어야 한다
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    expect(res.body).toHaveProperty('db_tables');
+    expect(Array.isArray(res.body.db_tables)).toBe(true);
+    expect(res.body.db_tables.length).toBe(SYSTEM_MAP_JSON.db_tables.length);
+    SYSTEM_MAP_JSON.db_tables.forEach(table => {
+      expect(res.body.db_tables).toContain(table);
+    });
+  });
+
+  it('응답에 frontend_routes 배열이 포함된다 (AC-5)', async () => {
+    // AC-5: App.jsx에서 파싱된 Route path 목록이 응답에 포함되어야 한다
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    expect(res.body).toHaveProperty('frontend_routes');
+    expect(Array.isArray(res.body.frontend_routes)).toBe(true);
+    expect(res.body.frontend_routes.length).toBe(SYSTEM_MAP_JSON.frontend_routes.length);
+    SYSTEM_MAP_JSON.frontend_routes.forEach(route => {
+      expect(res.body.frontend_routes).toContain(route);
+    });
+  });
+
+  it('features 항목에 tables, pages 필드가 포함된다 (AC-1, AC-2)', async () => {
+    // AC-1: @table 파싱 결과가 feature.tables로 전달된다
+    // AC-2: @page 파싱 결과가 feature.pages로 전달된다
+    mockExecSync.mockReturnValue(JSON.stringify(SYSTEM_MAP_JSON));
+    const res = await request(buildApp()).get('/system-map');
+    const feature = res.body.features[0];
+    expect(feature).toHaveProperty('tables');
+    expect(feature).toHaveProperty('pages');
+    expect(Array.isArray(feature.tables)).toBe(true);
+    expect(Array.isArray(feature.pages)).toBe(true);
+    SYSTEM_MAP_JSON.features[0].tables.forEach(t => expect(feature.tables).toContain(t));
+    SYSTEM_MAP_JSON.features[0].pages.forEach(p => expect(feature.pages).toContain(p));
   });
 });
 

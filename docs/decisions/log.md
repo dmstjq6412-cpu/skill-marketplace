@@ -33,6 +33,24 @@
 - **충돌 시 확인**: 응답이 느리다는 피드백이 오면 재검토. 그때는 캐시 레이어 추가로 해결하고 git 커밋 방식으로 되돌아가지 않는다.
 
 ---
+## 2026-05-21 | REQ-feature-map-view | TD-1: @feature 주석 형식
+- **결정**: `// @feature {name}`, `// @desc {설명}`, `// @flow {흐름}`, `// @req {slug}` — `@feature`만 필수, 나머지 선택
+- **이유**: @ prefix로 grep·편집기 하이라이팅이 쉽고, REQ→코드 방향의 명시적 연결로 문서↔코드 추적 가능
+- **충돌 시 확인**: 필드 추가 필요 시 generate-system-map.js 파서만 수정
+
+---
+## 2026-05-21 | REQ-feature-map-view | TD-4: REQ 연결 방식 — @req 직접 명시
+- **결정**: REQ↔feature 연결은 `@req {slug}` 주석으로 직접 명시. 키워드 자동 매칭 폐기.
+- **이유**: 키워드 매칭은 오탐 가능. "어떤 REQ를 구현하는가"는 개발자가 직접 선언해야 정확하다.
+- **충돌 시 확인**: REQ slug 변경 시 코드 주석도 grep으로 일괄 확인 필요
+
+---
+## 2026-05-21 | REQ-feature-map-view | TD-5: @feature 주석 강제 수단
+- **결정**: CLAUDE.md 규칙 + git-guard coding_standards.md WARNING 체크 두 레이어 적용
+- **이유**: Claude가 코드 작성 시(CLAUDE.md)와 사람이 직접 수정 시(git-guard) 각각 catch
+- **충돌 시 확인**: WARNING 노이즈가 심하면 lint 규칙으로만 유지
+
+---
 ## 2026-05-21 | REQ-system-map-view | TD-2: REQ 문서 ↔ 라우트 파일 매핑 규칙
 - **결정**: `REQ-{slug}.md`의 slug에 라우트 파일명(auth/skills/harness)이 포함되면 해당 도메인에 연결한다.
 - **이유**: 코드 내 어노테이션 없이 파일명만으로 연결할 수 있어 유지보수 부담이 없다.
@@ -43,3 +61,21 @@
 - **결정**: `GET /api/harness/system-map` 핸들러가 `child_process.execSync`로 `generate-system-map.js --json`을 실행한다.
 - **이유**: 스크립트 로직을 백엔드 코드에 복사하지 않아 단일 진실 소스를 유지한다.
 - **충돌 시 확인**: 배포 환경에서 Node 스크립트 실행 권한 문제가 생기면 스크립트 로직을 라이브러리 함수로 분리해 직접 import하는 방식으로 전환한다.
+
+---
+## 2026-05-21 | system-map-layer-context | TD-1: @table/@page 주석 형식
+- **결정**: `// @table {테이블명[,테이블명]}` / `// @page {경로[,경로]}` — 쉼표 구분 복수값 허용
+- **이유**: `@feature`와 동일한 `// @key value` 패턴 유지. 파서 변경 최소화.
+- **충돌 시 확인**: 테이블명·경로에 공백이 포함되면 파싱 오류 가능
+
+---
+## 2026-05-21 | system-map-layer-context | TD-2: db_tables 파싱 방식
+- **결정**: `schema.sql`에서 `CREATE TABLE (IF NOT EXISTS)? (\w+)` 정규식으로 테이블명만 추출
+- **이유**: 컬럼 상세는 이번 범위 밖. 테이블 이름만 있어도 충분.
+- **충돌 시 확인**: 마이그레이션용 ALTER TABLE은 파싱 대상 아님
+
+---
+## 2026-05-21 | system-map-layer-context | TD-3: frontend_routes 파싱 방식
+- **결정**: `App.jsx`에서 `<Route path="([^"]+)"` 정규식으로 path 값만 추출
+- **이유**: 컴포넌트 이름보다 path가 새 팀원에게 더 직접적.
+- **충돌 시 확인**: 중첩 라우터가 생기면 App.jsx 외 파일도 파싱 필요
