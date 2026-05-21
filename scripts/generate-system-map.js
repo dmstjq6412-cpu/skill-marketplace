@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// 기능지도(system-map.md) 자동 생성 스크립트
-// 트리거: push.md Step 0 — 라우트/client.js 변경 시 조건부 실행
+// 기능지도(system-map) 자동 생성 스크립트
+// --json 플래그: stdout에 JSON 출력 (백엔드 API용)
+// 플래그 없음: system-map.md 파일 생성
 
 const fs = require('fs');
 const path = require('path');
@@ -9,10 +10,27 @@ const ROOT = path.resolve(__dirname, '..');
 const ROUTES_DIR = path.join(ROOT, 'backend/src/routes');
 const CLIENT_FILE = path.join(ROOT, 'frontend/src/api/client.js');
 const TESTS_BACKEND = path.join(ROOT, 'backend/tests/routes');
-const TESTS_FRONTEND = path.join(ROOT, 'frontend/src/__tests__');
+const REQ_DIR = path.join(ROOT, 'docs/requirements');
 const OUTPUT = path.join(ROOT, 'system-map.md');
 
-// 라우트 파일에서 엔드포인트 파싱
+// REQ 파일에서 도메인명 → slug 매핑 빌드 (TD-2: 도메인 레벨 연결)
+function buildReqMap() {
+  const map = {};
+  if (!fs.existsSync(REQ_DIR)) return map;
+  fs.readdirSync(REQ_DIR)
+    .filter(f => f.startsWith('REQ-') && f.endsWith('.md'))
+    .forEach(f => {
+      const slug = f.replace(/^REQ-/, '').replace(/\.md$/, '');
+      ['auth', 'skills', 'harness', 'download'].forEach(domain => {
+        if (slug.includes(domain)) {
+          if (!map[domain]) map[domain] = [];
+          map[domain].push(slug);
+        }
+      });
+    });
+  return map;
+}
+
 function parseRoutes(file) {
   const content = fs.readFileSync(file, 'utf8');
   const lines = content.split('\n');
@@ -27,7 +45,6 @@ function parseRoutes(file) {
     const path_ = match[2];
     const hasAuth = authPattern.test(line);
 
-    // 위 줄에서 주석 찾기 (// 로 시작하는 줄)
     let description = '';
     for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
       const commentMatch = lines[j].trim().match(/^\/\/\s*(.+)/);
@@ -41,7 +58,6 @@ function parseRoutes(file) {
   return routes;
 }
 
-// client.js에서 함수 파싱
 function parseClient(file) {
   const content = fs.readFileSync(file, 'utf8');
   const lines = content.split('\n');
@@ -53,11 +69,12 @@ function parseClient(file) {
   return functions;
 }
 
-// API 경로로 client 함수 매핑
 function matchClientFn(method, apiPath, clientFns) {
   const slug = apiPath.replace(/\/:?\w+/g, '').replace(/\//g, '_').replace(/^_/, '');
-  const methodMap = { GET: ['fetch', 'get'], POST: ['post', 'upload', 'create', 'login', 'exchange'],
-    PATCH: ['patch', 'update'], DELETE: ['delete', 'remove'], PUT: ['put', 'update'] };
+  const methodMap = {
+    GET: ['fetch', 'get'], POST: ['post', 'upload', 'create', 'login', 'exchange'],
+    PATCH: ['patch', 'update'], DELETE: ['delete', 'remove'], PUT: ['put', 'update'],
+  };
   const prefixes = methodMap[method] || [];
   return clientFns.find(fn =>
     prefixes.some(p => fn.name.toLowerCase().startsWith(p)) &&
@@ -65,33 +82,52 @@ function matchClientFn(method, apiPath, clientFns) {
   );
 }
 
-// 테스트 파일 매핑
-function findTestFile(routeFile, isBackend) {
+function findTestFile(routeFile) {
   const base = path.basename(routeFile, '.js');
-  if (isBackend) {
-    const t = path.join(TESTS_BACKEND, `${base}.test.js`);
-    return fs.existsSync(t) ? `backend/tests/routes/${base}.test.js` : null;
-  }
-  const t = path.join(TESTS_FRONTEND, `${base}.test.js`);
-  const tx = path.join(TESTS_FRONTEND, `${base}.test.jsx`);
-  if (fs.existsSync(tx)) return `frontend/src/__tests__/${base}.test.jsx`;
-  if (fs.existsSync(t)) return `frontend/src/__tests__/${base}.test.js`;
-  return null;
-}
-
-// UI 컴포넌트 매핑
-function findUIComponent(routeFile, apiPath) {
-  if (routeFile.includes('harness')) return 'HarnessLabPage.jsx';
-  if (routeFile.includes('skills') || routeFile.includes('download')) return 'SkillCard.jsx / SkillDetailPage.jsx';
-  if (routeFile.includes('auth')) return 'App.jsx (auth flow)';
-  return null;
+  const t = path.join(TESTS_BACKEND, `${base}.test.js`);
+  return fs.existsSync(t) ? `backend/tests/routes/${base}.test.js` : null;
 }
 
 function main() {
+  const isJson = process.argv.includes('--json');
   const routeFiles = fs.readdirSync(ROUTES_DIR).filter(f => f.endsWith('.js'));
   const clientFns = parseClient(CLIENT_FILE);
+  const reqMap = buildReqMap();
   const now = new Date().toISOString().slice(0, 10);
 
+  if (isJson) {
+    const domains = [];
+    for (const routeFile of routeFiles) {
+      const filePath = path.join(ROUTES_DIR, routeFile);
+      const routes = parseRoutes(filePath);
+      if (routes.length === 0) continue;
+
+      const baseName = path.basename(routeFile, '.js');
+      const testFile = findTestFile(routeFile);
+      const reqSlugs = reqMap[baseName] || [];
+
+      domains.push({
+        name: baseName,
+        routes: routes.map(r => {
+          const clientFn = matchClientFn(r.method, r.path, clientFns);
+          return {
+            method: r.method,
+            path: r.path,
+            description: r.description,
+            auth: r.auth,
+            logic: `${routeFile}:${r.line}`,
+            client_fn: clientFn ? { name: clientFn.name, line: clientFn.line } : null,
+            test_file: testFile || null,
+            req_slug: reqSlugs.length > 0 ? reqSlugs[0] : null,
+          };
+        }),
+      });
+    }
+    process.stdout.write(JSON.stringify({ generated_at: now, domains }));
+    return;
+  }
+
+  // 기존 마크다운 출력 (system-map.md)
   let md = `# System Map\n\n> 자동 생성: ${now} | generate-system-map.js\n\n`;
 
   for (const routeFile of routeFiles) {
@@ -100,39 +136,26 @@ function main() {
     if (routes.length === 0) continue;
 
     const baseName = path.basename(routeFile, '.js');
-    const testFile = findTestFile(routeFile, true);
+    const testFile = findTestFile(routeFile);
+    const reqSlugs = reqMap[baseName] || [];
 
     md += `## ${baseName}.js\n\n`;
-    md += `| 기능명 | Method | Path | 로직 위치 | 연관 파일 | 연관 테스트 | 인증 |\n`;
-    md += `|--------|--------|------|-----------|-----------|------------|------|\n`;
+    md += `| 기능명 | Method | Path | 로직 위치 | 연관 테스트 | REQ | 인증 |\n`;
+    md += `|--------|--------|------|-----------|------------|-----|------|\n`;
 
     for (const r of routes) {
       const clientFn = matchClientFn(r.method, r.path, clientFns);
-      const uiComp = findUIComponent(routeFile, r.path);
-      const relatedFiles = [
-        clientFn ? `client.js:${clientFn.line} (${clientFn.name})` : null,
-        uiComp,
-      ].filter(Boolean).join('<br>');
-
       const featureName = r.description || `${r.method} ${r.path}`;
       const logicPos = `${routeFile}:${r.line}`;
       const testPos = testFile || '—';
+      const reqBadge = reqSlugs.length > 0 ? reqSlugs.map(s => `REQ-${s}`).join(', ') : '—';
       const auth = r.auth ? '🔒' : '🔓';
+      const clientInfo = clientFn ? `client.js:${clientFn.line} (${clientFn.name})` : '—';
 
-      md += `| ${featureName} | \`${r.method}\` | \`${r.path}\` | ${logicPos} | ${relatedFiles || '—'} | ${testPos} | ${auth} |\n`;
+      md += `| ${featureName} | \`${r.method}\` | \`${r.path}\` | ${logicPos}<br>${clientInfo} | ${testPos} | ${reqBadge} | ${auth} |\n`;
     }
     md += '\n';
   }
-
-  // client.js 함수 중 라우트 매핑 안 된 것
-  md += `## client.js (프론트엔드 API)\n\n`;
-  md += `| 함수명 | 위치 | 연관 테스트 |\n`;
-  md += `|--------|------|------------|\n`;
-  const clientTest = 'frontend/src/__tests__/client.test.js';
-  for (const fn of clientFns) {
-    md += `| \`${fn.name}\` | client.js:${fn.line} | ${clientTest} |\n`;
-  }
-  md += '\n';
 
   fs.writeFileSync(OUTPUT, md);
   console.log(`system-map.md 생성 완료: ${OUTPUT}`);

@@ -76,6 +76,9 @@ export const exchangeAuthCode = (code) =>
 export const loginWithCliToken = (token) =>
   api.post('/auth/cli', { token }).then(r => r.data);
 
+export const fetchSystemMap = () =>
+  api.get('/harness/system-map').then(r => r.data);
+
 export const getGithubLoginUrl = () => {
   const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
   const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';
