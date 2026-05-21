@@ -13,7 +13,6 @@ const TESTS_BACKEND = path.join(ROOT, 'backend/tests/routes');
 const REQ_DIR = path.join(ROOT, 'docs/requirements');
 const OUTPUT = path.join(ROOT, 'system-map.md');
 
-// REQ 파일에서 도메인명 → slug 매핑 빌드 (TD-2: 도메인 레벨 연결)
 function buildReqMap() {
   const map = {};
   if (!fs.existsSync(REQ_DIR)) return map;
@@ -31,12 +30,20 @@ function buildReqMap() {
   return map;
 }
 
+// @feature / @desc / @flow / @req 주석을 포함해 라우트 파싱
 function parseRoutes(file) {
   const content = fs.readFileSync(file, 'utf8');
   const lines = content.split('\n');
   const routes = [];
   const routePattern = /router\.(get|post|put|patch|delete)\(['"]([^'"]+)['"]/;
   const authPattern = /authenticate/;
+
+  const annotationPatterns = {
+    feature: /^\/\/\s*@feature\s+(.+)/,
+    desc:    /^\/\/\s*@desc\s+(.+)/,
+    flow:    /^\/\/\s*@flow\s+(.+)/,
+    req:     /^\/\/\s*@req\s+(.+)/,
+  };
 
   lines.forEach((line, i) => {
     const match = line.match(routePattern);
@@ -45,17 +52,97 @@ function parseRoutes(file) {
     const path_ = match[2];
     const hasAuth = authPattern.test(line);
 
+    const annotations = { feature: null, desc: null, flow: null, req_slug: null };
     let description = '';
-    for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
-      const commentMatch = lines[j].trim().match(/^\/\/\s*(.+)/);
-      if (commentMatch) { description = commentMatch[1].trim(); break; }
-      if (lines[j].trim() !== '') break;
+
+    for (let j = i - 1; j >= Math.max(0, i - 8); j--) {
+      const trimmed = lines[j].trim();
+      if (trimmed === '') continue;
+
+      let matched = false;
+      for (const [key, pattern] of Object.entries(annotationPatterns)) {
+        const m = trimmed.match(pattern);
+        if (m) {
+          const field = key === 'req' ? 'req_slug' : key;
+          if (annotations[field] === null) annotations[field] = m[1].trim();
+          matched = true;
+          break;
+        }
+      }
+
+      if (!matched) {
+        const commentMatch = trimmed.match(/^\/\/\s*(.+)/);
+        if (commentMatch) {
+          if (!description) description = commentMatch[1].trim();
+        } else {
+          break;
+        }
+      }
     }
 
-    routes.push({ method, path: path_, line: i + 1, auth: hasAuth, description });
+    routes.push({
+      method, path: path_, line: i + 1, auth: hasAuth, description,
+      feature: annotations.feature, desc: annotations.desc,
+      flow: annotations.flow, req_slug: annotations.req_slug,
+    });
   });
 
   return routes;
+}
+
+// 테스트 파일에서 it() 설명 목록 추출
+function parseTestCases(testFilePath) {
+  if (!testFilePath || !fs.existsSync(testFilePath)) return [];
+  try {
+    const content = fs.readFileSync(testFilePath, 'utf8');
+    const results = [];
+    const itPattern = /\bit\s*\(\s*(['"`])([\s\S]*?)\1/g;
+    let m;
+    while ((m = itPattern.exec(content)) !== null) {
+      results.push(m[2]);
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+// @feature가 있는 라우트를 feature 단위로 그룹핑
+function buildFeatures(allRouteGroups) {
+  const featureMap = new Map();
+
+  for (const { routes, testFilePath } of allRouteGroups) {
+    const testCases = testFilePath ? parseTestCases(testFilePath) : [];
+
+    for (const route of routes) {
+      if (!route.feature) continue;
+
+      const name = route.feature;
+      if (!featureMap.has(name)) {
+        featureMap.set(name, {
+          name,
+          desc: route.desc || null,
+          flow: route.flow || null,
+          req_slug: route.req_slug || null,
+          routes: [],
+          tests: [...testCases],
+        });
+      } else {
+        const existing = featureMap.get(name);
+        if (!existing.desc && route.desc) existing.desc = route.desc;
+        if (!existing.flow && route.flow) existing.flow = route.flow;
+        if (!existing.req_slug && route.req_slug) existing.req_slug = route.req_slug;
+        testCases.forEach(t => { if (!existing.tests.includes(t)) existing.tests.push(t); });
+      }
+      featureMap.get(name).routes.push({
+        method: route.method,
+        path: route.path,
+        auth: route.auth,
+      });
+    }
+  }
+
+  return Array.from(featureMap.values());
 }
 
 function parseClient(file) {
@@ -97,14 +184,19 @@ function main() {
 
   if (isJson) {
     const domains = [];
+    const allRouteGroups = [];
+
     for (const routeFile of routeFiles) {
       const filePath = path.join(ROUTES_DIR, routeFile);
       const routes = parseRoutes(filePath);
       if (routes.length === 0) continue;
 
       const baseName = path.basename(routeFile, '.js');
-      const testFile = findTestFile(routeFile);
+      const testFileRel = findTestFile(routeFile);
+      const testFilePath = testFileRel ? path.join(ROOT, testFileRel) : null;
       const reqSlugs = reqMap[baseName] || [];
+
+      allRouteGroups.push({ routes, testFilePath });
 
       domains.push({
         name: baseName,
@@ -117,13 +209,15 @@ function main() {
             auth: r.auth,
             logic: `${routeFile}:${r.line}`,
             client_fn: clientFn ? { name: clientFn.name, line: clientFn.line } : null,
-            test_file: testFile || null,
+            test_file: testFileRel || null,
             req_slug: reqSlugs.length > 0 ? reqSlugs[0] : null,
           };
         }),
       });
     }
-    process.stdout.write(JSON.stringify({ generated_at: now, domains }));
+
+    const features = buildFeatures(allRouteGroups);
+    process.stdout.write(JSON.stringify({ generated_at: now, domains, features }));
     return;
   }
 

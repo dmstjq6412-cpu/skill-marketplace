@@ -8,6 +8,9 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 const ALLOWED_VIZ = ['todo-architecture', 'git-guard'];
 
+// @feature harness-log
+// @desc 하네스 세션 로그 목록 조회 (날짜 역순, summary 120자 truncate)
+// @flow GET /logs → DB 조회 → summary 파싱 → 목록 반환
 // GET /api/harness/logs
 router.get('/logs', async (req, res) => {
   try {
@@ -27,6 +30,8 @@ router.get('/logs', async (req, res) => {
   }
 });
 
+// @feature harness-log
+// @desc 특정 날짜 로그 전문 조회
 // GET /api/harness/logs/:date
 router.get('/logs/:date', async (req, res) => {
   try {
@@ -44,6 +49,8 @@ router.get('/logs/:date', async (req, res) => {
   }
 });
 
+// @feature harness-log
+// @desc 하네스 세션 로그 저장 (date 기준 upsert)
 // POST /api/harness/logs
 router.post('/logs', async (req, res) => {
   try {
@@ -63,6 +70,8 @@ router.post('/logs', async (req, res) => {
   }
 });
 
+// @feature harness-blueprint
+// @desc 스킬 개선 히스토리 목록 조회 (각 스킬의 최신 entry + 총 기록 수)
 // GET /api/harness/blueprints — 스킬 목록 (각 스킬의 최신 entry + 총 기록 수)
 router.get('/blueprints', async (req, res) => {
   try {
@@ -86,6 +95,8 @@ router.get('/blueprints', async (req, res) => {
   }
 });
 
+// @feature harness-blueprint
+// @desc 특정 스킬의 전체 개선 이력 조회
 // GET /api/harness/blueprints/:skill — 특정 스킬의 전체 개선 히스토리
 router.get('/blueprints/:skill', async (req, res) => {
   try {
@@ -103,6 +114,8 @@ router.get('/blueprints/:skill', async (req, res) => {
   }
 });
 
+// @feature harness-blueprint
+// @desc 스킬 개선 entry 저장 (skill+date 기준 upsert)
 // POST /api/harness/blueprints — 스킬 개선 entry 저장
 // body: { skill, date, change, reason?, issues?, articles? }
 router.post('/blueprints', async (req, res) => {
@@ -127,6 +140,8 @@ router.post('/blueprints', async (req, res) => {
   }
 });
 
+// @feature harness-analysis
+// @desc 시범운행 분석 리포트 목록 조회 (날짜 역순)
 // GET /api/harness/analysis
 router.get('/analysis', async (req, res) => {
   try {
@@ -141,6 +156,8 @@ router.get('/analysis', async (req, res) => {
   }
 });
 
+// @feature harness-analysis
+// @desc 특정 분석 리포트 조회
 // GET /api/harness/analysis/:id
 router.get('/analysis/:id', async (req, res) => {
   try {
@@ -155,6 +172,8 @@ router.get('/analysis/:id', async (req, res) => {
   }
 });
 
+// @feature harness-analysis
+// @desc 시범운행 분석 리포트 저장 (date 기준 upsert)
 // POST /api/harness/analysis
 router.post('/analysis', async (req, res) => {
   try {
@@ -181,6 +200,8 @@ router.post('/analysis', async (req, res) => {
   }
 });
 
+// @feature harness-viz
+// @desc 시각화 HTML 파일 조회 (허용 목록 내 이름만)
 // GET /api/harness/html/:name
 router.get('/html/:name', async (req, res) => {
   const { name } = req.params;
@@ -197,6 +218,8 @@ router.get('/html/:name', async (req, res) => {
   }
 });
 
+// @feature harness-viz
+// @desc 시각화 HTML 저장 (name 기준 upsert)
 // POST /api/harness/html/:name
 router.post('/html/:name', async (req, res) => {
   try {
@@ -217,6 +240,8 @@ router.post('/html/:name', async (req, res) => {
   }
 });
 
+// @feature harness-references
+// @desc 아티클 레퍼런스 목록 조회 (평가 이력 포함, tag 필터 가능)
 // GET /api/harness/references
 router.get('/references', async (req, res) => {
   try {
@@ -255,6 +280,8 @@ router.get('/references', async (req, res) => {
   }
 });
 
+// @feature harness-references
+// @desc 아티클 레퍼런스 저장 (url 기준 upsert)
 // POST /api/harness/references
 router.post('/references', async (req, res) => {
   try {
@@ -278,6 +305,8 @@ router.post('/references', async (req, res) => {
   }
 });
 
+// @feature harness-evaluations
+// @desc 전체 평가 이력 조회 (skill 파라미터로 필터 가능)
 // GET /api/harness/evaluations — 전체 평가 이력 (skill 쿼리 파라미터로 필터 가능)
 router.get('/evaluations', async (req, res) => {
   try {
@@ -300,6 +329,8 @@ router.get('/evaluations', async (req, res) => {
   }
 });
 
+// @feature harness-evaluations
+// @desc 특정 스킬의 평가 이력 조회
 // GET /api/harness/evaluations/:skill
 router.get('/evaluations/:skill', async (req, res) => {
   try {
@@ -316,6 +347,8 @@ router.get('/evaluations/:skill', async (req, res) => {
   }
 });
 
+// @feature harness-evaluations
+// @desc 스킬 평가 저장
 // POST /api/harness/evaluations
 router.post('/evaluations', async (req, res) => {
   try {
@@ -336,6 +369,8 @@ router.post('/evaluations', async (req, res) => {
   }
 });
 
+// @feature harness-evaluations
+// @desc 평가 gap_decisions 업데이트
 // PATCH /api/harness/evaluations/:id — gap_decisions 업데이트
 router.patch('/evaluations/:id', async (req, res) => {
   try {
@@ -357,6 +392,8 @@ router.patch('/evaluations/:id', async (req, res) => {
   }
 });
 
+// @feature harness-reviews
+// @desc 스킬 리뷰 인덱스 조회
 // GET /api/harness/reviews/:skill
 router.get('/reviews/:skill', async (req, res) => {
   try {
@@ -371,6 +408,8 @@ router.get('/reviews/:skill', async (req, res) => {
   }
 });
 
+// @feature harness-reviews
+// @desc 스킬 리뷰 인덱스 전체 덮어쓰기
 // POST /api/harness/reviews/:skill — 인덱스 전체 덮어쓰기
 router.post('/reviews/:skill', async (req, res) => {
   try {
@@ -390,6 +429,8 @@ router.post('/reviews/:skill', async (req, res) => {
   }
 });
 
+// @feature harness-evaluations
+// @desc 평가 삭제 (인증 필요)
 // DELETE /api/harness/evaluations/:id
 router.delete('/evaluations/:id', authenticate, async (req, res) => {
   try {
@@ -404,8 +445,12 @@ router.delete('/evaluations/:id', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/harness/system-map — 런타임 생성 (TD-4: 항상 최신 소스 반영)
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+
+// @feature system-map
+// @desc 시스템 맵 JSON 런타임 생성·반환 (라우트 파싱 + @feature 기능 지도 포함)
+// @flow GET /system-map → generate-system-map.js 실행 → domains + features JSON 반환
+// @req feature-map-view
 router.get('/system-map', authenticate, (req, res) => {
   try {
     const output = execSync('node scripts/generate-system-map.js --json', {
@@ -420,6 +465,8 @@ router.get('/system-map', authenticate, (req, res) => {
   }
 });
 
+// @feature harness-references
+// @desc 아티클 레퍼런스 삭제
 // DELETE /api/harness/references/:id
 router.delete('/references/:id', async (req, res) => {
   try {
