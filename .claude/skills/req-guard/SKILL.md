@@ -155,6 +155,15 @@ Important 항목 중 아직 답이 없는 것은 `[미정 — 확인 필요]` �
 - NFR-2 (Security):
 - NFR-3 (Maintainability):
 
+## Implementation Flow
+REQ 확정 시점의 원본 의도. 이 문서가 저장된 후 변경되지 않는다.
+Feature 파일의 Implementation Flow가 현재 상태를 반영한다.
+
+형식: `{METHOD} {path}: {단계} → {단계} → ...`
+단계는 비즈니스 수준으로 기술한다 (코드 라인이 아닌 의미 단위).
+
+- {METHOD} {path}: {단계} → {단계} → 응답
+
 ## Acceptance Criteria
 완료 판단의 기준. 테스트 가능한 조건으로 기술한다.
 - [ ] AC-1:
@@ -183,6 +192,12 @@ Important 항목 중 아직 답이 없는 것은 `[미정 — 확인 필요]` �
 "완료"의 명확한 기준.
 - [ ]
 - [ ]
+
+## Features
+req-guard Feature decomposition 결과. Step 7.6에서 자동 생성됨.
+
+| Feature | 파일 | 타입 |
+|---------|------|------|
 
 ## Metadata
 - Author: 임은섭
@@ -215,7 +230,111 @@ Important 항목 중 아직 답이 없는 것은 `[미정 — 확인 필요]` �
 1. `docs/requirements/` 디렉토리가 없으면 생성한다.
 2. `docs/requirements/REQ-{slug}.md` 로 저장한다.
 
-### 7.5. 기술 결정사항 아카이브
+### 7.5. Feature 파일 관리
+
+REQ 파일 저장 후 Feature decomposition을 수행하고 `docs/features/` 파일을 관리한다.
+
+#### 7.5.1 Feature decomposition
+
+REQ의 FR과 Implementation Flow를 분석해 독립적으로 구현 가능한 Feature 단위로 분해한다.
+
+각 Feature 항목:
+- slug: kebab-case 3~4 단어
+- 담당 엔드포인트 목록
+- 연결 AC 번호
+- Implementation Flow 요약 (REQ Implementation Flow에서 해당 부분 추출)
+
+분해 결과를 사용자에게 먼저 보여주고 확인을 받는다:
+```
+Feature decomposition 결과:
+
+F-1: {slug}
+  엔드포인트: {METHOD} /path, ...
+  연결 AC: AC-1, AC-2
+
+F-2: {slug}
+  엔드포인트: {METHOD} /path
+  연결 AC: AC-3
+
+위 분해로 진행할까요? 조정이 필요하면 말씀해주세요.
+```
+
+#### 7.5.2 기존 Feature 충돌 검사
+
+각 Feature slug에 대해 `docs/features/{slug}.md` 파일이 있는지 확인한다.
+
+파일이 있으면 `## Decisions` 섹션을 읽어 현재 REQ 의도와 충돌하는 FD가 있는지 검사한다.
+
+충돌 발견 시 REQ 작성을 계속하기 전에 사용자에게 알린다:
+```
+⚠ 결정 충돌 — {Feature slug} / {FD-n}: {결정 제목}
+
+  기존 결정: {내용} ({출처 REQ}, {날짜}, {이유})
+  현재 요청: {새 방향}
+
+  A. 새 결정으로 대체 (개발 후 project-guard가 FD 갱신)
+  B. 두 요구사항 조율 필요 → REQ 범위 재논의
+```
+
+#### 7.5.3 Feature 파일 생성/업데이트
+
+사용자 확인 후 각 Feature에 대해:
+
+**신규 Feature** (`docs/features/{slug}.md` 없음):
+`docs/features/{slug}.md` 를 아래 템플릿으로 생성한다.
+
+```markdown
+---
+name: {slug}
+status: wip
+created: {오늘 날짜}
+last-modified: {오늘 날짜}
+source-req: {REQ-slug}
+---
+
+# F: {feature 이름}
+
+## Overview
+{FR에서 추출한 한 줄 설명}
+
+## Endpoints
+{담당 엔드포인트 목록}
+
+## Implementation Flow
+{REQ Implementation Flow에서 해당 Feature 부분 추출. project-guard가 이후 갱신.}
+
+## Connected
+- Tables: (project-guard가 채움)
+- Pages: (project-guard가 채움)
+- REQs: {REQ-slug}
+
+## Decisions
+(FD-n 항목. project-guard 합의 결과 또는 REQ Technical Notes에서 해당 Feature 관련 TD 변환)
+
+## Changelog
+| 날짜 | 변경 내용 | 이유 | REQ | 타입 |
+|------|---------|------|-----|------|
+| {오늘 날짜} | 최초 생성 | | {REQ-slug} | 신규 |
+```
+
+**기존 Feature** (파일 있음):
+- `## Connected > REQs` 에 현재 REQ-slug 추가
+- Changelog 갱신은 project-guard 담당 — req-guard는 건드리지 않음
+
+#### 7.5.4 REQ ## Features 섹션 업데이트
+
+REQ 파일의 `## Features` 섹션을 decomposition 결과로 채운다:
+
+```markdown
+## Features
+| Feature | 파일 | 타입 |
+|---------|------|------|
+| {slug} | [docs/features/{slug}.md](../features/{slug}.md) | 신규\|수정 |
+```
+
+---
+
+### 7.6. 기술 결정사항 아카이브
 
 REQ 문서의 `## Technical Notes` 섹션에 `TD-` 항목이 하나 이상 존재하면,
 각 항목을 `docs/decisions/log.md` 에 추가로 기록한다.
@@ -243,8 +362,11 @@ TD 항목이 없으면 이 단계를 건너뛴다.
 
 ```
 Requirements 문서 저장 완료: docs/requirements/REQ-{slug}.md
+{Feature 신규}: Feature 파일 {n}개 생성 → docs/features/
+{Feature 수정}: 기존 Feature {n}개 REQ 연결 추가
+{충돌 해소}: 결정 충돌 {n}건 → 사용자 확인 완료
 {TD 항목이 있으면}: 기술 결정사항 {n}건 → docs/decisions/log.md 에 추가됨
 
 다음 단계: tdd-guard-claude를 실행하여 이 spec을 기반으로 테스트를 먼저 작성하세요.
-tdd-guard-claude는 이 REQ 파일을 참고하여 Acceptance Criteria를 테스트로 변환합니다.
+tdd-guard-claude는 REQ의 AC와 Feature Implementation Flow를 참고하여 테스트를 작성합니다.
 ```

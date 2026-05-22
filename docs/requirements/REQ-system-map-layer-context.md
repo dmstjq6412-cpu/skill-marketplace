@@ -73,6 +73,11 @@
 - [ ] `team.yml` WARNING 규칙 추가
 - [ ] 테스트 통과
 
+## Features
+| Feature | 파일 | 타입 |
+|---------|------|------|
+| system-map | [docs/features/system-map.md](../features/system-map.md) | 수정 |
+
 ## Metadata
 - Author: 임은섭
 - Created: 2026-05-21

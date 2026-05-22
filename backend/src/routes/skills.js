@@ -17,9 +17,10 @@ function compareVersions(a, b) {
 
 // @feature skill-browse
 // @desc 스킬 목록 조회 (검색·페이지네이션, 이름별 최신 버전만 반환)
-// @flow GET /skills?search=&page=&limit= → DB 조회 → 이름별 그룹핑 → 페이지네이션 응답
+// @flow DB 조회 → 이름별 그룹핑 → 페이지네이션 응답
 // @req skill-browse
-// GET /api/skills
+// @table skills
+// @page /
 router.get('/', async (req, res) => {
   const pool = getPool();
   const { search = '', page = 1, limit = 20 } = req.query;
@@ -62,7 +63,9 @@ router.get('/', async (req, res) => {
 
 // @feature skill-browse
 // @desc 이름으로 스킬 조회 (최신 버전 + 전체 버전 목록 반환)
-// GET /api/skills/by-name/:name
+// @flow DB 이름 조회 → 버전 정렬 → 전체 버전 목록 반환
+// @table skills
+// @page /skills/:id
 router.get('/by-name/:name', async (req, res) => {
   const pool = getPool();
   try {
@@ -92,7 +95,9 @@ router.get('/by-name/:name', async (req, res) => {
 
 // @feature skill-detail
 // @desc 스킬 상세 조회 (버전 목록·첨부 파일 목록 포함)
-// GET /api/skills/:id
+// @flow DB ID 조회 → 버전+파일 병렬 조회 → 상세 반환
+// @table skills,skill_files
+// @page /skills/:id
 router.get('/:id', async (req, res) => {
   const pool = getPool();
   try {
@@ -125,7 +130,9 @@ router.get('/:id', async (req, res) => {
 
 // @feature skill-detail
 // @desc 스킬 첨부 파일(참조 MD 등) 조회
-// GET /api/skills/:id/files/:fileId
+// @flow DB 파일 조회 → 내용 반환
+// @table skill_files
+// @page /skills/:id
 router.get('/:id/files/:fileId', async (req, res) => {
   const pool = getPool();
   try {
@@ -143,8 +150,9 @@ router.get('/:id/files/:fileId', async (req, res) => {
 
 // @feature skill-upload
 // @desc 스킬 업로드 — ZIP 또는 단일 MD 파일, 인증 필요
-// @flow POST /skills (multipart) → ZIP이면 SKILL.md 추출 → DB 저장 → id 반환
-// POST /api/skills
+// @flow 인증 확인 → multipart 파싱 → ZIP이면 SKILL.md 추출 → DB 저장 → id 반환
+// @table skills,skill_files
+// @page /upload
 // [BUG FIX] author 필드가 없거나 빈 문자열/공백만 있는 경우 400 반환
 // 기존: !author 는 빈 문자열('')에만 작동하고 공백(' ')은 통과시키는 문제 존재
 // 수정: author를 trim() 한 뒤 falsy 체크하여 공백 문자열도 거부
@@ -211,7 +219,9 @@ router.post('/', authenticate, upload.single('skill_file'), async (req, res) => 
 
 // @feature skill-download
 // @desc 스킬 다운로드 카운터 증가
-// POST /api/skills/:id/download
+// @flow 다운로드 카운터 증가 → 업데이트 카운터 반환
+// @table skills
+// @page /skills/:id
 router.post('/:id/download', async (req, res) => {
   const pool = getPool();
   try {
@@ -229,7 +239,9 @@ router.post('/:id/download', async (req, res) => {
 
 // @feature skill-delete
 // @desc 스킬 삭제 (소유자만, 레거시는 누구나)
-// DELETE /api/skills/:id
+// @flow 인증 확인 → 소유권 검증 → 스킬 삭제
+// @table skills
+// @page /skills/:id
 router.delete('/:id', authenticate, async (req, res) => {
   const pool = getPool();
   try {

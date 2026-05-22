@@ -98,10 +98,9 @@ function exchangeCodeForToken(code) {
 
 // @feature github-oauth
 // @desc GitHub OAuth 콜백 처리 — code를 token으로 교환 후 JWT 발급
-// @flow GET /github/callback → GitHub code 수신 → access token 교환 → user 조회 → JWT 발급 → onetime code redirect
+// @flow rate limit → GitHub code 수신 → access token 교환 → user 조회 → JWT 발급 → onetime code redirect
 // @req auth-flow
-// GET /api/auth/github/callback — 브라우저 OAuth 흐름
-// JWT를 URL에 직접 노출하지 않고 일회용 코드로 교환
+// @page /auth/callback
 router.get('/github/callback', authLimiter, async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).json({ error: 'Missing code' });
@@ -124,7 +123,8 @@ router.get('/github/callback', authLimiter, async (req, res) => {
 
 // @feature github-oauth
 // @desc 일회용 코드를 JWT로 교환 (XSS 방지용 토큰 중계)
-// GET /api/auth/token?code=xxx — 일회용 코드를 JWT로 교환
+// @flow rate limit → onetime code 검증 → JWT 반환
+// @page /auth/callback
 router.get('/token', authLimiter, (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).json({ error: 'Missing code' });
@@ -135,7 +135,7 @@ router.get('/token', authLimiter, (req, res) => {
 
 // @feature github-oauth
 // @desc CLI 환경에서 GitHub token으로 JWT 발급
-// POST /api/auth/cli — CLI (gh auth token) 흐름
+// @flow rate limit → GitHub token 검증 → user 조회 → JWT 발급
 router.post('/cli', authLimiter, async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: 'Missing token' });
@@ -152,7 +152,8 @@ router.post('/cli', authLimiter, async (req, res) => {
 
 // @feature user-profile
 // @desc 현재 로그인 사용자 정보 조회
-// GET /api/auth/me — 현재 사용자 정보 (프론트엔드용)
+// @flow 인증 확인 → user 정보 반환
+// @page /
 router.get('/me', authenticate, (req, res) => {
   res.json({ github_id: req.user.github_id, username: req.user.username });
 });
