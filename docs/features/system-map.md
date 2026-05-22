@@ -2,7 +2,7 @@
 name: system-map
 status: wip
 created: 2026-05-21
-last-modified: 2026-05-21
+last-modified: 2026-05-22
 source-req: REQ-system-map-view
 ---
 
@@ -17,6 +17,7 @@ source-req: REQ-system-map-view
 
 ## Implementation Flow
 GET /api/harness/system-map: 인증 확인 → generate-system-map.js 실행 (@feature/@table/@page/@req 파싱 + schema.sql/App.jsx 파싱 포함) → domains/features/db_tables/frontend_routes JSON 반환
+GET /api/harness/intent: 인증 확인 → harness-intent.md 파일 읽기 → { content } 반환 (파일 없으면 { content: '' })
 
 ## Connected
 - Tables: (없음 — DB 직접 사용 없음, generate-system-map.js가 파일 파싱)
@@ -43,3 +44,4 @@ GET /api/harness/system-map: 인증 확인 → generate-system-map.js 실행 (@f
 | 2026-05-21 | 최초 생성 — generate-system-map.js --json + GET /api/harness/system-map + SystemStructurePage | 시스템 구조 파악 비용 감소 | REQ-system-map-view | 신규 |
 | 2026-05-21 | @feature/@desc/@flow/@req 파싱 추가, features 배열 포함, 기능 지도 탭 추가 | API·기능 두 관점 탭 전환 제공 | REQ-feature-map-view | 수정 |
 | 2026-05-21 | @table/@page 파싱 추가, db_tables/frontend_routes 최상위 배열 포함, feature 카드에 tables/pages 표시 | DB·프론트 레이어 컨텍스트 연결 | REQ-system-map-layer-context | 수정 |
+| 2026-05-22 | Flow 변경: GET /intent 엔드포인트 추가 — harness-intent.md 뷰어 API | viz 탭 제거 후 하네스 의도 탭 신설 | - | A |

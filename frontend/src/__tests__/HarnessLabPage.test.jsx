@@ -18,6 +18,7 @@ const mockFetchHarnessEvaluations = vi.fn();
 const mockFetchAllHarnessEvaluations = vi.fn();
 const mockPatchHarnessEvaluation = vi.fn();
 const mockDeleteHarnessEvaluation = vi.fn();
+const mockFetchHarnessIntent = vi.fn();
 
 
 vi.mock('../api/client', () => ({
@@ -34,6 +35,7 @@ vi.mock('../api/client', () => ({
   fetchAllHarnessEvaluations: (...args) => mockFetchAllHarnessEvaluations(...args),
   patchHarnessEvaluation: (...args) => mockPatchHarnessEvaluation(...args),
   deleteHarnessEvaluation: (...args) => mockDeleteHarnessEvaluation(...args),
+  fetchHarnessIntent: (...args) => mockFetchHarnessIntent(...args),
 
 }));
 
@@ -148,6 +150,7 @@ function seedMocks() {
   mockFetchAllHarnessEvaluations.mockResolvedValue({ evaluations: MOCK_EVALUATIONS });
   mockPatchHarnessEvaluation.mockResolvedValue({ id: 3, gap_decisions: [{ index: 0, type: 'gap', decision: 'adopt' }] });
   mockDeleteHarnessEvaluation.mockResolvedValue({ ok: true });
+  mockFetchHarnessIntent.mockResolvedValue({ content: '' });
 
 }
 
@@ -357,5 +360,38 @@ describe('HarnessLabPage', () => {
       expect(screen.queryByText('No Decision Yet')).not.toBeInTheDocument();
     });
 
+  });
+
+  describe('하네스 의도 탭', () => {
+    it('"시각화" 탭이 없고 "하네스 의도" 탭이 존재한다', async () => {
+      renderPage();
+      expect(screen.queryByText('시각화')).toBeNull();
+      expect(screen.getByText('하네스 의도')).toBeInTheDocument();
+    });
+
+    it('"하네스 의도" 탭 클릭 시 fetchHarnessIntent를 호출한다', async () => {
+      renderPage();
+      fireEvent.click(screen.getByText('하네스 의도'));
+      await waitFor(() => expect(mockFetchHarnessIntent).toHaveBeenCalled());
+    });
+
+    it('fetchHarnessIntent가 content를 반환하면 마크다운이 렌더링된다', async () => {
+      const INTENT_CONTENT = '# Harness Intent\n\n이 하네스의 존재 이유는 단 하나다.';
+      mockFetchHarnessIntent.mockResolvedValue({ content: INTENT_CONTENT });
+      renderPage();
+      fireEvent.click(screen.getByText('하네스 의도'));
+      const viewer = await screen.findByTestId('markdown-viewer');
+      expect(viewer).toBeInTheDocument();
+      expect(viewer.textContent).toContain('Harness Intent');
+      expect(viewer.textContent).toContain('이 하네스의 존재 이유는 단 하나다.');
+    });
+
+    it('content가 빈 문자열이면 빈 상태 표시', async () => {
+      mockFetchHarnessIntent.mockResolvedValue({ content: '' });
+      renderPage();
+      fireEvent.click(screen.getByText('하네스 의도'));
+      await waitFor(() => expect(mockFetchHarnessIntent).toHaveBeenCalled());
+      expect(screen.queryByTestId('markdown-viewer')).not.toBeInTheDocument();
+    });
   });
 });

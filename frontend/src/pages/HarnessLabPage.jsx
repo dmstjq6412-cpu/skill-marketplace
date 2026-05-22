@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations, patchHarnessEvaluation, deleteHarnessEvaluation } from '../api/client';
+import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations, patchHarnessEvaluation, deleteHarnessEvaluation, fetchHarnessIntent } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
 import HarnessCompareView from '../components/HarnessCompareView';
 
@@ -15,12 +15,8 @@ const GOLDEN_RULES = [
 ];
 
 const TEXT = {
-  vizTodoLabel: '\uC5D4\uD130\uD504\uB77C\uC774\uC988 \uBC14\uC774\uBE0C \uC544\uD0A4\uD14D\uCC98',
-  vizTodoHint: '\uC544\uD0A4\uD14D\uCC98, \uC6CC\uD06C\uD50C\uB85C\uC6B0 \uAD6C\uC870, TODO \uC2DC\uC2A4\uD15C \uC124\uACC4\uB97C \uB2E4\uB8EC \uB0A0\uC5D0 \uD655\uC778\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.',
-  vizGitLabel: 'Git Guard \uD750\uB984\uB3C4',
-  vizGitHint: '\uBE0C\uB79C\uCE58 \uC804\uB7B5, \uB9AC\uBDF0 \uD750\uB984, git guard \uC790\uB3D9\uD654 \uC778\uACC4\uB97C \uB2E4\uB8EC \uB0A0\uC5D0 \uD655\uC778\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.',
-  vizMetaLabel: '\uBA54\uD0C0 \uD558\uB124\uC2A4 \uC2A4\uD0AC \uC778\uD130\uB799\uC158',
-  vizMetaHint: '\uCF54\uC5B4 \uD558\uB124\uC2A4\uB97C \uAD00\uCC30\uD558\uACE0 \uAC1C\uC120 \uD310\uB2E8 \uADFC\uAC70\uB97C \uC313\uB294 inspecting tool \uB808\uC774\uC5B4 \uC138\uC158 \uC0AC\uC774\uD074\uACFC \uD53C\uB4DC\uBC31 \uB8E8\uD504.',
+  intentTab: '\uD558\uB124\uC2A4 \uC758\uB3C4',
+  intentEmpty: '\uD558\uB124\uC2A4 \uC758\uB3C4 \uBB38\uC11C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
   latestSession: '\uCD5C\uC2E0',
   promptPrefix: '\uD558\uB124\uC2A4 \uC138\uC158\uC744 \uC774\uC5B4\uC11C \uC9C4\uD589\uD558\uC138\uC694.',
   summaryPrefix: '\uD604\uC7AC \uC694\uC57D:',
@@ -39,7 +35,6 @@ const TEXT = {
   copiedNextPrompt: '\uB2E4\uC74C \uC5D0\uC774\uC804\uD2B8 \uD504\uB86C\uD504\uD2B8\uB97C \uBCF5\uC0AC\uD588\uC2B5\uB2C8\uB2E4',
   logsTab: '\uB370\uC77C\uB9AC \uB85C\uADF8',
   blueprintTab: '스킬 개선이력',
-  vizTab: '\uC2DC\uAC01\uD654',
   analysisTab: '\uC2DC\uBC94\uC6B4\uD589',
   noAnalyses: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uC2DC\uBC94\uC6B4\uD589 \uB9AC\uD3EC\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
   runHarnessAnalysis: '`/harness-analysis start` \uB85C \uC2DC\uBC94\uC6B4\uD589\uC744 \uC2DC\uC791\uD558\uC138\uC694.',
@@ -61,7 +56,6 @@ const TEXT = {
   copyPrompt: '\uD504\uB86C\uD504\uD2B8 \uBCF5\uC0AC',
   copyWrapup: 'Wrap-up \uBCF5\uC0AC',
   openBlueprint: '\uBE14\uB8E8\uD504\uB9B0\uD2B8 \uC5F4\uAE30',
-  openViz: '\uC2DC\uAC01\uD654 \uC5F4\uAE30',
   copiedWrapup: 'wrap-up \uB9C8\uD06C\uB2E4\uC6B4\uC744 \uBCF5\uC0AC\uD588\uC2B5\uB2C8\uB2E4',
   blueprintList: '\uC2A4\uD0AC \uBAA9\uB85D',
   noBlueprints: '\uC544\uC9C1 \uC800\uC7A5\uB41C \uBE14\uB8E8\uD504\uB9B0\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
@@ -73,13 +67,6 @@ const TEXT = {
   issuesLabel: '\uC8FC\uC694 \uC7C1\uC810',
   articlesLabel: '\uCC38\uACE0 \uC544\uD2F0\uD074',
   noEntries: '\uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
-  selectViz: '\uB370\uC77C\uB9AC \uAE30\uB85D\uACFC \uC5F0\uACB0\uB41C \uC2DC\uAC01\uD654\uB97C \uC120\uD0DD\uD558\uC138\uC694.',
-};
-
-const VIZ = {
-  'todo-architecture': { label: TEXT.vizTodoLabel, hint: TEXT.vizTodoHint },
-  'git-guard': { label: TEXT.vizGitLabel, hint: TEXT.vizGitHint },
-  'meta-harness': { label: TEXT.vizMetaLabel, hint: TEXT.vizMetaHint },
 };
 
 
@@ -106,15 +93,6 @@ const buildPrompt = (date, summary, content) => extractSection(content, ['next p
   summary ? `${TEXT.summaryPrefix} ${summary}` : '',
   TEXT.promptFallback,
 ].filter(Boolean).join('\n');
-
-const detectViz = (blueprint, content = '') => {
-  const skills = blueprint?.skills?.map(skill => skill.name) || [];
-  const text = `${content} ${skills.join(' ')}`.toLowerCase();
-  if (text.includes('git-guard') || skills.includes('git-guard-claude')) return 'git-guard';
-  if (text.includes('architecture') || skills.includes('todo-architecture')) return 'todo-architecture';
-  return null;
-};
-
 
 const copyText = async text => {
   if (!text || !navigator?.clipboard?.writeText) return false;
@@ -364,7 +342,7 @@ export default function HarnessLabPage() {
   const [skillHistory, setSkillHistory] = useState(null);
   const [skillEvaluations, setSkillEvaluations] = useState([]);
   const [logContent, setLogContent] = useState('');
-  const [activeViz, setActiveViz] = useState(null);
+  const [intentContent, setIntentContent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [analysisList, setAnalysisList] = useState([]);
@@ -388,8 +366,13 @@ export default function HarnessLabPage() {
   const todayLog = logs[0];
   const selectedSummary = logs.find(log => log.date === selectedDate)?.summary || '';
   const prompt = buildPrompt(selectedDate, selectedSummary, logContent);
-  const blueprintViz = detectViz({}, logContent);
   const todayPrompt = buildPrompt(todayLog?.date, todayLog?.summary, '');
+
+  const openIntent = async () => {
+    if (intentContent !== null) return;
+    const data = await fetchHarnessIntent();
+    setIntentContent(data.content || '');
+  };
 
   const openLog = async date => {
     setSelectedDate(date);
@@ -507,8 +490,8 @@ export default function HarnessLabPage() {
       </div>
 
       <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit flex-wrap">
-        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['viz', TEXT.vizTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab], ['evaluations', TEXT.evaluationsTab]].map(([key, label]) => (
-          <button key={key} type="button" onClick={() => { setTab(key); setCopyStatus(''); if (key !== 'viz') setActiveViz(null); }} className={`px-4 py-2 text-sm rounded-lg ${tab === key ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
+        {[['logs', TEXT.logsTab], ['blueprint', TEXT.blueprintTab], ['intent', TEXT.intentTab], ['analysis', TEXT.analysisTab], ['references', TEXT.referencesTab], ['evaluations', TEXT.evaluationsTab]].map(([key, label]) => (
+          <button key={key} type="button" onClick={() => { setTab(key); setCopyStatus(''); if (key === 'intent') openIntent(); }} className={`px-4 py-2 text-sm rounded-lg ${tab === key ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}>{label}</button>
         ))}
       </div>
 
@@ -526,7 +509,7 @@ export default function HarnessLabPage() {
                 <button type="button" className="px-3 py-2 rounded-lg bg-violet-600 text-white text-sm" onClick={() => handleCopy(prompt, TEXT.copiedNextPrompt)}>{TEXT.copyPrompt}</button>
                 <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => handleCopy(logContent, TEXT.copiedWrapup)}>{TEXT.copyWrapup}</button>
                 <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => setTab('blueprint')}>{TEXT.openBlueprint}</button>
-                {blueprintViz && <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('viz'); setActiveViz(blueprintViz); }}>{TEXT.openViz}</button>}
+                <button type="button" className="px-3 py-2 rounded-lg border text-sm" onClick={() => { setTab('intent'); openIntent(); }}>{TEXT.intentTab}</button>
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-6"><MarkdownViewer content={logContent} /></div>
@@ -788,10 +771,13 @@ export default function HarnessLabPage() {
         );
       })()}
 
-      {tab === 'viz' && <div className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-2">{Object.entries(VIZ).map(([key, item]) => <button key={key} type="button" onClick={() => setActiveViz(key)} className="text-left px-4 py-4 rounded-2xl border bg-white dark:bg-[#111218]"><p className="text-sm font-semibold">{item.label}</p><p className="mt-1 text-xs text-slate-500">{item.hint}</p></button>)}</div>
-        {!activeViz ? <div className="h-80 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">{TEXT.selectViz}</div> : <div className="space-y-3"><p className="text-sm text-slate-500">{VIZ[activeViz].hint}</p><div className="rounded-2xl border border-slate-200 overflow-hidden bg-white" style={{ height: '78vh' }}><iframe key={activeViz} src={`/viz/${activeViz}.html`} className="w-full h-full border-0" title={activeViz} sandbox="allow-scripts allow-same-origin" /></div></div>}
-      </div>}
+      {tab === 'intent' && (
+        <div className="rounded-2xl border bg-white dark:bg-[#111218] p-6">
+          {intentContent === null && <div className="h-40 flex items-center justify-center text-slate-400 text-sm">불러오는 중...</div>}
+          {intentContent === '' && <div className="h-40 flex items-center justify-center text-slate-400 text-sm">{TEXT.intentEmpty}</div>}
+          {intentContent && <MarkdownViewer content={intentContent} />}
+        </div>
+      )}
 
       {tab === 'evaluations' && (() => {
         const evalSkills = [...new Set(allEvaluations.map(e => e.skill))];

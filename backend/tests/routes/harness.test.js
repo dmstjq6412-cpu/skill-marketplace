@@ -4,9 +4,12 @@ import express from 'express';
 
 const mockPool = vi.hoisted(() => ({ query: vi.fn() }));
 const mockExecSync = vi.hoisted(() => vi.fn());
+const mockReadFileSync = vi.hoisted(() => vi.fn());
 vi.mock('../../src/db/database.js', () => ({ getPool: () => mockPool }));
 vi.mock('../../src/middleware/auth.js', () => ({ authenticate: (req, res, next) => next() }));
 vi.mock('child_process', () => ({ execSync: mockExecSync }));
+vi.mock('fs', () => ({ readFileSync: mockReadFileSync }));
+vi.mock('node:fs', () => ({ readFileSync: mockReadFileSync }));
 
 const { default: harnessRouter } = await import('../../src/routes/harness.js');
 
@@ -544,6 +547,29 @@ describe('GET /system-map', () => {
     expect(Array.isArray(feature.pages)).toBe(true);
     SYSTEM_MAP_JSON.features[0].tables.forEach(t => expect(feature.tables).toContain(t));
     SYSTEM_MAP_JSON.features[0].pages.forEach(p => expect(feature.pages).toContain(p));
+  });
+});
+
+// ============================================================
+// GET /intent — harness-intent.md 내용 반환
+// ============================================================
+describe('GET /intent', () => {
+  // mockReset + mockImplementation(throw) 조합은 Vitest 4.1.2 버그를 유발하므로
+  // mockReturnValueOnce + 별도 reset 없이 테스트별로 독립 설정한다.
+
+  it('harness-intent.md 내용을 { content } 형태로 반환한다', async () => {
+    const INTENT_CONTENT = '# Harness Intent\n\n이 하네스의 존재 이유는 단 하나다.';
+    mockReadFileSync.mockReturnValueOnce(INTENT_CONTENT);
+    const res = await request(buildApp()).get('/intent');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('content', INTENT_CONTENT);
+  });
+
+  it('파일이 없으면 content 빈 문자열 반환, 서버 에러 없음', async () => {
+    mockReadFileSync.mockImplementation(() => { throw new Error('ENOENT: no such file or directory'); });
+    const res = await request(buildApp()).get('/intent');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('content', '');
   });
 });
 

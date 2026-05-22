@@ -1,5 +1,6 @@
 import express from 'express';
 import { execSync } from 'child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { getPool } from '../db/database.js';
@@ -501,6 +502,20 @@ router.get('/system-map', authenticate, (req, res) => {
   } catch (err) {
     console.error('[system-map] execSync failed:', err.message);
     res.status(500).json({ error: 'Failed to generate system map' });
+  }
+});
+
+// @feature system-map
+// @desc 하네스 의도 문서(.harness-lab/harness-intent.md) 반환
+// @flow 파일 읽기 → { content } 반환, 파일 없으면 { content: '' }
+// @page /lab
+router.get('/intent', authenticate, (req, res) => {
+  try {
+    const intentPath = path.join(PROJECT_ROOT, '.harness-lab', 'harness-intent.md');
+    const content = readFileSync(intentPath, 'utf8');
+    res.json({ content });
+  } catch {
+    res.json({ content: '' });
   }
 });
 
