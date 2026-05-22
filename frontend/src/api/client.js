@@ -79,6 +79,9 @@ export const loginWithCliToken = (token) =>
 export const fetchSystemMap = () =>
   api.get('/harness/system-map').then(r => r.data);
 
+export const fetchHarnessIntent = () =>
+  api.get('/harness/intent').then(r => r.data);
+
 export const getGithubLoginUrl = () => {
   const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
   const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';
