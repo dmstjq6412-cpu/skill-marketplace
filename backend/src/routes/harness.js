@@ -506,12 +506,12 @@ router.get('/system-map', authenticate, (req, res) => {
 });
 
 // @feature system-map
-// @desc 하네스 의도 문서(.harness-lab/harness-intent.md) 반환
+// @desc 하네스 의도 문서(docs/harness-intent.md) 반환
 // @flow 파일 읽기 → { content } 반환, 파일 없으면 { content: '' }
 // @page /lab
 router.get('/intent', authenticate, (req, res) => {
   try {
-    const intentPath = path.join(PROJECT_ROOT, '.harness-lab', 'harness-intent.md');
+    const intentPath = path.join(PROJECT_ROOT, 'docs', 'harness-intent.md');
     const content = readFileSync(intentPath, 'utf8');
     res.json({ content });
   } catch {
