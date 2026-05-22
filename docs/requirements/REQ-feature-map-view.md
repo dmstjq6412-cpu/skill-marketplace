@@ -90,6 +90,11 @@ My System Structure 페이지에 기능 지도(Feature Map) 탭을 추가한다.
 - [ ] git-guard coding_standards.md에 WARNING 체크 추가
 - [ ] 테스트 통과
 
+## Features
+| Feature | 파일 | 타입 |
+|---------|------|------|
+| system-map | [docs/features/system-map.md](../features/system-map.md) | 수정 |
+
 ## Metadata
 - Author: 임은섭
 - Created: 2026-05-21

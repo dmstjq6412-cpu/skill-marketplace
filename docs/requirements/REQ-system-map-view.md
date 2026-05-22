@@ -115,6 +115,11 @@
 - [ ] REQ 뱃지 표시 (있음/없음 구분)
 - [ ] 기존 테스트 회귀 없음
 
+## Features
+| Feature | 파일 | 타입 |
+|---------|------|------|
+| system-map | [docs/features/system-map.md](../features/system-map.md) | 신규 |
+
 ## Metadata
 - Author: 임은섭
 - Created: 2026-05-21

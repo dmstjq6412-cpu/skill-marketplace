@@ -490,3 +490,388 @@ describe('parseTestCases — 테스트 케이스 파싱', () => {
     expect(result).toEqual([]);
   });
 });
+
+// ===========================================================================
+// REQ-system-map-layer-context — 추가 픽스처
+// ===========================================================================
+
+const FIXTURE_ROUTE_WITH_TABLE_PAGE = `
+const router = require('express').Router();
+
+// @feature harness-log
+// @desc 하네스 로그 저장/조회
+// @table harness_logs,harness_blueprints
+// @page /lab
+router.get('/logs', authenticate, async (req, res) => {});
+
+// @feature harness-log
+// @table harness_logs
+router.post('/logs', authenticate, async (req, res) => {});
+`.trim();
+
+const FIXTURE_ROUTE_NO_TABLE_PAGE = `
+const router = require('express').Router();
+
+// @feature skill-browse
+// @desc 스킬 목록 조회
+router.get('/skills', async (req, res) => {});
+`.trim();
+
+const FIXTURE_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS skills (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
+
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS owner_github_id BIGINT;
+
+CREATE TABLE IF NOT EXISTS harness_logs (
+    date TEXT PRIMARY KEY,
+    content TEXT NOT NULL
+);
+
+CREATE TABLE harness_blueprints (
+    id SERIAL PRIMARY KEY
+);
+`.trim();
+
+// FIXTURE_SCHEMA_SQL에서 CREATE TABLE 문으로 생성된 테이블 이름 목록
+const FIXTURE_SCHEMA_TABLE_NAMES = ['skills', 'harness_logs', 'harness_blueprints'];
+
+const FIXTURE_APP_JSX = `
+import { Routes, Route } from 'react-router-dom';
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/skills/:id" element={<SkillDetailPage />} />
+      <Route path="/upload" element={<UploadPage />} />
+      <Route path="/lab" element={<HarnessLabPage />} />
+      <Route path="/system-structure" element={<SystemStructurePage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+    </Routes>
+  );
+}
+`.trim();
+
+// FIXTURE_APP_JSX에서 파싱되어야 하는 path 목록
+const FIXTURE_APP_JSX_PATHS = ['/', '/skills/:id', '/upload', '/lab', '/system-structure', '/auth/callback'];
+
+// ===========================================================================
+// 확장 인라인 파서 함수 (REQ-system-map-layer-context)
+// ===========================================================================
+
+/**
+ * parseRoutesWithLayerContext(content: string): Route[]
+ * parseRoutes와 동일하지만 @table, @page 주석도 파싱한다.
+ * tables: string[]  — @table 값을 쉼표 구분으로 분리
+ * pages:  string[]  — @page 값을 쉼표 구분으로 분리
+ * @table/@page 없으면 빈 배열
+ */
+function parseRoutesWithLayerContext(content) {
+  const lines = content.split('\n');
+  const routes = [];
+  const routePattern = /router\.(get|post|put|patch|delete)\(['"]([^'"]+)['"]/;
+  const authPattern = /authenticate/;
+
+  const annotationPatterns = {
+    feature: /^\/\/\s*@feature\s+(.+)/,
+    desc:    /^\/\/\s*@desc\s+(.+)/,
+    flow:    /^\/\/\s*@flow\s+(.+)/,
+    req:     /^\/\/\s*@req\s+(.+)/,
+    table:   /^\/\/\s*@table\s+(.+)/,
+    page:    /^\/\/\s*@page\s+(.+)/,
+  };
+
+  lines.forEach((line, i) => {
+    const match = line.match(routePattern);
+    if (!match) return;
+
+    const method = match[1].toUpperCase();
+    const path_ = match[2];
+    const hasAuth = authPattern.test(line);
+
+    const annotations = { feature: null, desc: null, flow: null, req_slug: null, table: null, page: null };
+    let description = '';
+
+    for (let j = i - 1; j >= Math.max(0, i - 10); j--) {
+      const trimmed = lines[j].trim();
+      if (trimmed === '') continue;
+
+      let matched = false;
+      for (const [key, pattern] of Object.entries(annotationPatterns)) {
+        const m = trimmed.match(pattern);
+        if (m) {
+          const field = key === 'req' ? 'req_slug' : key;
+          if (annotations[field] === null) annotations[field] = m[1].trim();
+          matched = true;
+          break;
+        }
+      }
+
+      if (!matched) {
+        const commentMatch = trimmed.match(/^\/\/\s*(.+)/);
+        if (commentMatch) {
+          if (!description) description = commentMatch[1].trim();
+        } else {
+          break;
+        }
+      }
+    }
+
+    const tables = annotations.table
+      ? annotations.table.split(',').map(t => t.trim()).filter(Boolean)
+      : [];
+    const pages = annotations.page
+      ? annotations.page.split(',').map(p => p.trim()).filter(Boolean)
+      : [];
+
+    routes.push({
+      method,
+      path: path_,
+      line: i + 1,
+      auth: hasAuth,
+      description,
+      feature: annotations.feature,
+      desc: annotations.desc,
+      flow: annotations.flow,
+      req_slug: annotations.req_slug,
+      tables,
+      pages,
+    });
+  });
+
+  return routes;
+}
+
+/**
+ * parseSchema(content: string): string[]
+ * schema.sql 내용에서 CREATE TABLE 문의 테이블 이름을 추출한다.
+ * CREATE TABLE IF NOT EXISTS ... 도 처리한다.
+ * ALTER TABLE, CREATE INDEX는 포함하지 않는다.
+ */
+function parseSchema(content) {
+  const tablePattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/gi;
+  const tables = [];
+  let m;
+  while ((m = tablePattern.exec(content)) !== null) {
+    tables.push(m[1]);
+  }
+  return tables;
+}
+
+/**
+ * parseAppRoutes(content: string): string[]
+ * App.jsx 내용에서 <Route path="..."> 패턴의 path 값을 추출한다.
+ */
+function parseAppRoutes(content) {
+  const routePattern = /<Route\s+[^>]*path="([^"]+)"/g;
+  const paths = [];
+  let m;
+  while ((m = routePattern.exec(content)) !== null) {
+    paths.push(m[1]);
+  }
+  return paths;
+}
+
+/**
+ * buildFeaturesWithLayerContext(routes: Route[]): Feature[]
+ * buildFeatures와 동일하지만 tables, pages를 feature 단위로 집계한다.
+ * 같은 feature의 라우트에서 tables/pages를 합산하고 중복을 제거한다.
+ */
+function buildFeaturesWithLayerContext(routes) {
+  const featureMap = new Map();
+
+  for (const route of routes) {
+    if (!route.feature) continue;
+
+    const name = route.feature;
+    if (!featureMap.has(name)) {
+      featureMap.set(name, {
+        name,
+        desc: route.desc || null,
+        flow: route.flow || null,
+        req_slug: route.req_slug || null,
+        routes: [],
+        tests: [],
+        tables: [],
+        pages: [],
+      });
+    }
+
+    const feat = featureMap.get(name);
+    feat.routes.push(route);
+    route.tables.forEach(t => { if (!feat.tables.includes(t)) feat.tables.push(t); });
+    route.pages.forEach(p => { if (!feat.pages.includes(p)) feat.pages.push(p); });
+  }
+
+  return Array.from(featureMap.values());
+}
+
+// ===========================================================================
+// describe: parseRoutes — @table/@page 파싱 (REQ-system-map-layer-context)
+// ===========================================================================
+describe('parseRoutes — @table/@page 파싱 (REQ-system-map-layer-context)', () => {
+  it('@table 주석이 있는 라우트는 tables 배열을 포함한다 (AC-1)', () => {
+    const routes = parseRoutesWithLayerContext(FIXTURE_ROUTE_WITH_TABLE_PAGE);
+    const logsRoute = routes.find(r => r.path === '/logs' && r.method === 'GET');
+    expect(logsRoute).toBeDefined();
+    expect(Array.isArray(logsRoute.tables)).toBe(true);
+    expect(logsRoute.tables.length).toBeGreaterThan(0);
+  });
+
+  it('@table 쉼표 구분 복수 테이블을 배열로 파싱한다 (TD-1)', () => {
+    const routes = parseRoutesWithLayerContext(FIXTURE_ROUTE_WITH_TABLE_PAGE);
+    const logsGet = routes.find(r => r.path === '/logs' && r.method === 'GET');
+    // 픽스처에서 GET /logs의 @table 값 직접 추출해 기대값 계산
+    const tableAnnotationLine = FIXTURE_ROUTE_WITH_TABLE_PAGE
+      .split('\n')
+      .find(l => l.trim().startsWith('// @table') && l.includes(','));
+    const expectedCount = tableAnnotationLine
+      ? tableAnnotationLine.replace(/.*@table\s+/, '').split(',').length
+      : 0;
+    expect(logsGet.tables.length).toBe(expectedCount);
+  });
+
+  it('@page 주석이 있는 라우트는 pages 배열을 포함한다 (AC-2)', () => {
+    const routes = parseRoutesWithLayerContext(FIXTURE_ROUTE_WITH_TABLE_PAGE);
+    const logsGet = routes.find(r => r.path === '/logs' && r.method === 'GET');
+    expect(Array.isArray(logsGet.pages)).toBe(true);
+    expect(logsGet.pages.length).toBeGreaterThan(0);
+  });
+
+  it('@table/@page 없는 라우트는 빈 배열을 가진다 (NFR-2 — 하위 호환)', () => {
+    const routes = parseRoutesWithLayerContext(FIXTURE_ROUTE_NO_TABLE_PAGE);
+    const route = routes[0];
+    expect(Array.isArray(route.tables)).toBe(true);
+    expect(Array.isArray(route.pages)).toBe(true);
+    expect(route.tables.length).toBe(0);
+    expect(route.pages.length).toBe(0);
+  });
+
+  it('@table/@page가 없어도 기존 @feature, @desc 필드는 영향받지 않는다 (NFR-2)', () => {
+    const routes = parseRoutesWithLayerContext(FIXTURE_ROUTE_WITH_TABLE_PAGE);
+    const logsGet = routes.find(r => r.path === '/logs' && r.method === 'GET');
+    expect(logsGet.feature).not.toBeNull();
+    expect(logsGet.desc).not.toBeNull();
+  });
+});
+
+// ===========================================================================
+// describe: parseSchema — schema.sql CREATE TABLE 파싱 (FR-3, AC-4, TD-2)
+// ===========================================================================
+describe('parseSchema — schema.sql CREATE TABLE 파싱', () => {
+  it('CREATE TABLE 문의 테이블 이름 배열을 반환한다 (FR-3)', () => {
+    const tables = parseSchema(FIXTURE_SCHEMA_SQL);
+    expect(Array.isArray(tables)).toBe(true);
+    expect(tables.length).toBe(FIXTURE_SCHEMA_TABLE_NAMES.length);
+  });
+
+  it('픽스처의 모든 테이블 이름이 배열에 포함된다 (AC-4)', () => {
+    const tables = parseSchema(FIXTURE_SCHEMA_SQL);
+    FIXTURE_SCHEMA_TABLE_NAMES.forEach(name => {
+      expect(tables).toContain(name);
+    });
+  });
+
+  it('CREATE TABLE IF NOT EXISTS도 파싱된다 (TD-2)', () => {
+    const tables = parseSchema(FIXTURE_SCHEMA_SQL);
+    const ifNotExistsTables = FIXTURE_SCHEMA_SQL
+      .split('\n')
+      .map(l => l.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+(\w+)/i)?.[1])
+      .filter(Boolean);
+    ifNotExistsTables.forEach(t => expect(tables).toContain(t));
+  });
+
+  it('ALTER TABLE 문은 파싱 대상이 아니다 — CREATE TABLE 수와 결과 수가 일치한다 (TD-2)', () => {
+    const tables = parseSchema(FIXTURE_SCHEMA_SQL);
+    const createCount = (FIXTURE_SCHEMA_SQL.match(/CREATE\s+TABLE/gi) || []).length;
+    expect(tables.length).toBe(createCount);
+  });
+
+  it('빈 문자열 입력은 빈 배열을 반환한다 (NFR-3)', () => {
+    expect(parseSchema('')).toEqual([]);
+  });
+
+  it('CREATE TABLE이 없는 SQL은 빈 배열을 반환하고 에러가 없다 (NFR-3)', () => {
+    expect(() => parseSchema('ALTER TABLE skills ADD COLUMN foo TEXT;')).not.toThrow();
+    expect(parseSchema('ALTER TABLE skills ADD COLUMN foo TEXT;')).toEqual([]);
+  });
+});
+
+// ===========================================================================
+// describe: parseAppRoutes — App.jsx Route path 파싱 (FR-4, AC-5, TD-3)
+// ===========================================================================
+describe('parseAppRoutes — App.jsx Route path 파싱', () => {
+  it('<Route path="..."> 패턴의 path 값 배열을 반환한다 (FR-4)', () => {
+    const paths = parseAppRoutes(FIXTURE_APP_JSX);
+    expect(Array.isArray(paths)).toBe(true);
+    expect(paths.length).toBe(FIXTURE_APP_JSX_PATHS.length);
+  });
+
+  it('픽스처의 모든 Route path가 배열에 포함된다 (AC-5)', () => {
+    const paths = parseAppRoutes(FIXTURE_APP_JSX);
+    FIXTURE_APP_JSX_PATHS.forEach(path => {
+      expect(paths).toContain(path);
+    });
+  });
+
+  it('파라미터 경로(:id)도 있는 그대로 반환한다 (TD-3)', () => {
+    const paths = parseAppRoutes(FIXTURE_APP_JSX);
+    const paramPath = FIXTURE_APP_JSX_PATHS.find(p => p.includes(':'));
+    if (paramPath) expect(paths).toContain(paramPath);
+  });
+
+  it('빈 문자열 입력은 빈 배열을 반환한다 (NFR-3)', () => {
+    expect(parseAppRoutes('')).toEqual([]);
+  });
+
+  it('<Route>가 없는 JSX는 빈 배열을 반환하고 에러가 없다 (NFR-3)', () => {
+    expect(() => parseAppRoutes('<div>no routes</div>')).not.toThrow();
+    expect(parseAppRoutes('<div>no routes</div>')).toEqual([]);
+  });
+});
+
+// ===========================================================================
+// describe: buildFeatures — tables/pages 필드 집계 (FR-6, AC-1, AC-2, AC-3)
+// ===========================================================================
+describe('buildFeatures — tables/pages 필드 집계 (REQ-system-map-layer-context)', () => {
+  it('각 feature 객체는 tables, pages 필드를 가진다 (FR-6)', () => {
+    const routes = parseRoutesWithLayerContext(FIXTURE_ROUTE_WITH_TABLE_PAGE);
+    const features = buildFeaturesWithLayerContext(routes);
+    expect(features.length).toBeGreaterThan(0);
+    features.forEach(f => {
+      expect(f).toHaveProperty('tables');
+      expect(f).toHaveProperty('pages');
+      expect(Array.isArray(f.tables)).toBe(true);
+      expect(Array.isArray(f.pages)).toBe(true);
+    });
+  });
+
+  it('같은 feature의 여러 라우트에서 tables가 합산되며 중복이 제거된다', () => {
+    // GET /logs: harness_logs, harness_blueprints / POST /logs: harness_logs → 합산 = 2개(중복 제거)
+    const routes = parseRoutesWithLayerContext(FIXTURE_ROUTE_WITH_TABLE_PAGE);
+    const features = buildFeaturesWithLayerContext(routes);
+    const feature = features.find(f => f.name === 'harness-log');
+    expect(feature).toBeDefined();
+
+    const allTables = routes
+      .filter(r => r.feature === 'harness-log')
+      .flatMap(r => r.tables);
+    const uniqueTables = [...new Set(allTables)];
+    expect(feature.tables.length).toBe(uniqueTables.length);
+    uniqueTables.forEach(t => expect(feature.tables).toContain(t));
+  });
+
+  it('@table/@page가 없는 feature는 tables/pages가 빈 배열이다 (AC-3, NFR-2)', () => {
+    const routes = parseRoutesWithLayerContext(FIXTURE_ROUTE_NO_TABLE_PAGE);
+    const features = buildFeaturesWithLayerContext(routes);
+    expect(features.length).toBeGreaterThan(0);
+    features.forEach(f => {
+      expect(f.tables).toEqual([]);
+      expect(f.pages).toEqual([]);
+    });
+  });
+});

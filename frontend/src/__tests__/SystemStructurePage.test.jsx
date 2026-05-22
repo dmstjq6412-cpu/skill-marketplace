@@ -78,6 +78,8 @@ const SYSTEM_MAP = {
         { method: 'POST', path: '/logs', auth: false },
       ],
       tests: ['로그 목록을 반환한다', '로그 없으면 빈 배열 반환'],
+      tables: ['harness_logs'],
+      pages: ['/lab'],
     },
     {
       name: 'harness-eval',
@@ -88,8 +90,12 @@ const SYSTEM_MAP = {
         { method: 'DELETE', path: '/evaluations/:id', auth: true },
       ],
       tests: ['평가를 삭제한다'],
+      tables: [],
+      pages: [],
     },
   ],
+  db_tables: ['skills', 'skill_files', 'harness_logs', 'harness_blueprints', 'harness_viz', 'harness_analysis', 'harness_references', 'harness_evaluations'],
+  frontend_routes: ['/', '/skills/:id', '/upload', '/lab', '/system-structure', '/auth/callback'],
 };
 
 // Import component AFTER mocks (Red 단계 — 파일 미존재, 실패 정상)
@@ -587,6 +593,113 @@ describe('SystemStructurePage — API 목록 탭 회귀', () => {
           expect(featureMapSection.textContent).not.toContain(path);
         });
       }
+    });
+  });
+});
+
+// ============================================================
+// 기능 지도 탭 — feature 카드 tables/pages 표시 (REQ-system-map-layer-context)
+// ============================================================
+describe('SystemStructurePage — feature 카드 tables/pages 표시', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchSystemMap.mockResolvedValue(SYSTEM_MAP);
+  });
+
+  it('@table이 있는 feature는 펼쳤을 때 테이블 목록이 표시된다 (AC-1)', async () => {
+    // 펼쳤을 때 tables 배열의 모든 항목이 카드에 표시되어야 새 팀원이 DB 연결을 파악할 수 있다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const cards = document.querySelectorAll('[data-feature-card]');
+      expect(cards.length).toBeGreaterThan(0);
+    });
+
+    // tables가 있는 feature 찾기 (픽스처 참조)
+    const featureWithTables = SYSTEM_MAP.features.find(f => f.tables && f.tables.length > 0);
+    expect(featureWithTables).toBeDefined();
+
+    const cards = document.querySelectorAll('[data-feature-card]');
+    const targetCard = Array.from(cards).find(c => c.textContent.includes(featureWithTables.name));
+    expect(targetCard).toBeDefined();
+
+    const toggle = targetCard.querySelector('[data-toggle], button');
+    if (toggle) await user.click(toggle);
+
+    await waitFor(() => {
+      featureWithTables.tables.forEach(tableName => {
+        expect(targetCard.textContent).toContain(tableName);
+      });
+    });
+  });
+
+  it('@page가 있는 feature는 펼쳤을 때 페이지 경로가 표시된다 (AC-2)', async () => {
+    // 펼쳤을 때 pages 배열의 모든 항목이 카드에 표시되어야 새 팀원이 프론트 연결을 파악할 수 있다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const cards = document.querySelectorAll('[data-feature-card]');
+      expect(cards.length).toBeGreaterThan(0);
+    });
+
+    // pages가 있는 feature 찾기 (픽스처 참조)
+    const featureWithPages = SYSTEM_MAP.features.find(f => f.pages && f.pages.length > 0);
+    expect(featureWithPages).toBeDefined();
+
+    const cards = document.querySelectorAll('[data-feature-card]');
+    const targetCard = Array.from(cards).find(c => c.textContent.includes(featureWithPages.name));
+    expect(targetCard).toBeDefined();
+
+    const toggle = targetCard.querySelector('[data-toggle], button');
+    if (toggle) await user.click(toggle);
+
+    await waitFor(() => {
+      featureWithPages.pages.forEach(pagePath => {
+        expect(targetCard.textContent).toContain(pagePath);
+      });
+    });
+  });
+
+  it('tables/pages가 빈 배열인 feature는 펼쳤을 때 해당 섹션이 표시되지 않는다 (AC-3)', async () => {
+    // tables/pages가 없으면 해당 섹션이 아예 없어야 한다 — 빈 상태보다 미표시가 낫다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const cards = document.querySelectorAll('[data-feature-card]');
+      expect(cards.length).toBeGreaterThan(0);
+    });
+
+    // tables/pages가 모두 빈 feature 찾기 (픽스처 참조)
+    const featureNoLayerContext = SYSTEM_MAP.features.find(
+      f => (!f.tables || f.tables.length === 0) && (!f.pages || f.pages.length === 0)
+    );
+    expect(featureNoLayerContext).toBeDefined();
+
+    const cards = document.querySelectorAll('[data-feature-card]');
+    const targetCard = Array.from(cards).find(c => c.textContent.includes(featureNoLayerContext.name));
+    expect(targetCard).toBeDefined();
+
+    const toggle = targetCard.querySelector('[data-toggle], button');
+    if (toggle) await user.click(toggle);
+
+    await waitFor(() => {
+      // DB 테이블 섹션 레이블이 없어야 한다
+      const dbSection =
+        targetCard.querySelector('[data-testid="tables-section"]') ||
+        targetCard.querySelector('[data-tables-section]');
+      expect(dbSection).toBeNull();
+
+      // 프론트 페이지 섹션 레이블이 없어야 한다
+      const pageSection =
+        targetCard.querySelector('[data-testid="pages-section"]') ||
+        targetCard.querySelector('[data-pages-section]');
+      expect(pageSection).toBeNull();
     });
   });
 });

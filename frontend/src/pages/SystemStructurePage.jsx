@@ -181,6 +181,46 @@ function FeatureCard({ feature }) {
               </ul>
             </div>
           )}
+
+          {feature.tables && feature.tables.length > 0 && (
+            <div
+              data-testid="tables-section"
+              data-tables-section
+              className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20"
+            >
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">DB 테이블</p>
+              <div className="flex flex-wrap gap-1.5">
+                {feature.tables.map((t, i) => (
+                  <span
+                    key={i}
+                    className="inline-block px-2 py-0.5 rounded text-xs font-mono bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {feature.pages && feature.pages.length > 0 && (
+            <div
+              data-testid="pages-section"
+              data-pages-section
+              className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20"
+            >
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">프론트 페이지</p>
+              <div className="flex flex-wrap gap-1.5">
+                {feature.pages.map((p, i) => (
+                  <span
+                    key={i}
+                    className="inline-block px-2 py-0.5 rounded text-xs font-mono bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
