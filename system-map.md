@@ -1,84 +1,187 @@
 # System Map
 
-> 자동 생성: 2026-04-24 | generate-system-map.js
+> 자동 생성: 2026-05-25 | generate-system-map.js (spec 기반)
+> call-graph: 2026-05-22 (34개 노드)
 
-## auth.js
+## Features (15개)
 
-| 기능명 | Method | Path | 로직 위치 | 연관 파일 | 연관 테스트 | 인증 |
-|--------|--------|------|-----------|-----------|------------|------|
-| JWT를 URL에 직접 노출하지 않고 일회용 코드로 교환 | `GET` | `/github/callback` | auth.js:101 | App.jsx (auth flow) | backend/tests/routes/auth.test.js | 🔓 |
-| GET /api/auth/token?code=xxx — 일회용 코드를 JWT로 교환 | `GET` | `/token` | auth.js:122 | App.jsx (auth flow) | backend/tests/routes/auth.test.js | 🔓 |
-| POST /api/auth/cli — CLI (gh auth token) 흐름 | `POST` | `/cli` | auth.js:131 | App.jsx (auth flow) | backend/tests/routes/auth.test.js | 🔓 |
-| GET /api/auth/me — 현재 사용자 정보 (프론트엔드용) | `GET` | `/me` | auth.js:146 | App.jsx (auth flow) | backend/tests/routes/auth.test.js | 🔒 |
+### github-oauth [active]
+GitHub OAuth 콜백을 처리하고 JWT를 발급한다. 브라우저 플로우(code → onetime code → JWT)와 CLI 플로우(GitHub token → JWT) 두 가지를 지원한다.
 
-## download.js
+엔드포인트: `GET /github/callback`, `GET /token`, `POST /cli`
+페이지: /auth/callback
+REQ: REQ-auth-flow
+Decisions: 0 | Changelog: 2
 
-| 기능명 | Method | Path | 로직 위치 | 연관 파일 | 연관 테스트 | 인증 |
-|--------|--------|------|-----------|-----------|------------|------|
-| GET /api/skills/:id/download | `GET` | `/:id/download` | download.js:7 | SkillCard.jsx / SkillDetailPage.jsx | — | 🔓 |
+### harness-analysis [active]
+시범운행(harness) 분석 리포트를 날짜 기준으로 저장하고 조회한다.
 
-## harness.js
+엔드포인트: `GET /analysis`, `GET /analysis/:id`, `POST /analysis`
+테이블: harness_analysis
+페이지: /lab
+Decisions: 0 | Changelog: 2
 
-| 기능명 | Method | Path | 로직 위치 | 연관 파일 | 연관 테스트 | 인증 |
-|--------|--------|------|-----------|-----------|------------|------|
-| GET /api/harness/logs | `GET` | `/logs` | harness.js:8 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/logs/:date | `GET` | `/logs/:date` | harness.js:27 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| POST /api/harness/logs | `POST` | `/logs` | harness.js:44 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/blueprints — 스킬 목록 (각 스킬의 최신 entry + 총 기록 수) | `GET` | `/blueprints` | harness.js:63 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/blueprints/:skill — 특정 스킬의 전체 개선 히스토리 | `GET` | `/blueprints/:skill` | harness.js:86 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| body: { skill, date, change, reason?, issues?, articles? } | `POST` | `/blueprints` | harness.js:104 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/analysis | `GET` | `/analysis` | harness.js:127 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/analysis/:id | `GET` | `/analysis/:id` | harness.js:141 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| POST /api/harness/analysis | `POST` | `/analysis` | harness.js:155 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/html/:name | `GET` | `/html/:name` | harness.js:181 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| POST /api/harness/html/:name | `POST` | `/html/:name` | harness.js:197 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/references | `GET` | `/references` | harness.js:217 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| POST /api/harness/references | `POST` | `/references` | harness.js:255 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/evaluations — 전체 평가 이력 (skill 쿼리 파라미터로 필터 가능) | `GET` | `/evaluations` | harness.js:278 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/evaluations/:skill | `GET` | `/evaluations/:skill` | harness.js:300 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| POST /api/harness/evaluations | `POST` | `/evaluations` | harness.js:316 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| PATCH /api/harness/evaluations/:id — gap_decisions 업데이트 | `PATCH` | `/evaluations/:id` | harness.js:336 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| GET /api/harness/reviews/:skill | `GET` | `/reviews/:skill` | harness.js:357 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| POST /api/harness/reviews/:skill — 인덱스 전체 덮어쓰기 | `POST` | `/reviews/:skill` | harness.js:371 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| DELETE /api/harness/evaluations/:id | `DELETE` | `/evaluations/:id` | harness.js:390 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
-| DELETE /api/harness/references/:id | `DELETE` | `/references/:id` | harness.js:404 | HarnessLabPage.jsx | backend/tests/routes/harness.test.js | 🔓 |
+### harness-blueprint [active]
+스킬별 개선 이력(blueprint)을 저장하고 조회한다. 각 스킬의 최신 entry와 전체 이력을 제공한다.
 
-## skills.js
+엔드포인트: `GET /blueprints`, `GET /blueprints/:skill`, `POST /blueprints`
+테이블: harness_blueprints
+페이지: /lab
+Decisions: 0 | Changelog: 2
 
-| 기능명 | Method | Path | 로직 위치 | 연관 파일 | 연관 테스트 | 인증 |
-|--------|--------|------|-----------|-----------|------------|------|
-| GET /api/skills | `GET` | `/` | skills.js:19 | SkillCard.jsx / SkillDetailPage.jsx | backend/tests/routes/skills.test.js | 🔓 |
-| GET /api/skills/by-name/:name | `GET` | `/by-name/:name` | skills.js:60 | SkillCard.jsx / SkillDetailPage.jsx | backend/tests/routes/skills.test.js | 🔓 |
-| GET /api/skills/:id | `GET` | `/:id` | skills.js:88 | SkillCard.jsx / SkillDetailPage.jsx | backend/tests/routes/skills.test.js | 🔓 |
-| GET /api/skills/:id/files/:fileId | `GET` | `/:id/files/:fileId` | skills.js:119 | SkillCard.jsx / SkillDetailPage.jsx | backend/tests/routes/skills.test.js | 🔓 |
-| 수정: author를 trim() 한 뒤 falsy 체크하여 공백 문자열도 거부 | `POST` | `/` | skills.js:138 | SkillCard.jsx / SkillDetailPage.jsx | backend/tests/routes/skills.test.js | 🔒 |
-| POST /api/skills/:id/download | `POST` | `/:id/download` | skills.js:200 | SkillCard.jsx / SkillDetailPage.jsx | backend/tests/routes/skills.test.js | 🔓 |
-| DELETE /api/skills/:id | `DELETE` | `/:id` | skills.js:216 | SkillCard.jsx / SkillDetailPage.jsx | backend/tests/routes/skills.test.js | 🔒 |
+### harness-evaluations [active]
+스킬 평가 이력을 저장·조회·수정·삭제한다. 삭제는 인증이 필요하다.
 
-## client.js (프론트엔드 API)
+엔드포인트: `GET /evaluations`, `GET /evaluations/:skill`, `POST /evaluations`, `PATCH /evaluations/:id`, `DELETE /evaluations/:id`
+테이블: harness_evaluations
+페이지: /lab
+Decisions: 0 | Changelog: 2
 
-| 함수명 | 위치 | 연관 테스트 |
-|--------|------|------------|
-| `fetchSkills` | client.js:15 | frontend/src/__tests__/client.test.js |
-| `fetchSkill` | client.js:18 | frontend/src/__tests__/client.test.js |
-| `uploadSkill` | client.js:21 | frontend/src/__tests__/client.test.js |
-| `deleteSkill` | client.js:24 | frontend/src/__tests__/client.test.js |
-| `getDownloadUrl` | client.js:27 | frontend/src/__tests__/client.test.js |
-| `fetchSkillFile` | client.js:29 | frontend/src/__tests__/client.test.js |
-| `fetchHarnessLogs` | client.js:32 | frontend/src/__tests__/client.test.js |
-| `fetchHarnessLog` | client.js:35 | frontend/src/__tests__/client.test.js |
-| `fetchHarnessBlueprints` | client.js:38 | frontend/src/__tests__/client.test.js |
-| `fetchHarnessBlueprintBySkill` | client.js:41 | frontend/src/__tests__/client.test.js |
-| `fetchHarnessAnalyses` | client.js:44 | frontend/src/__tests__/client.test.js |
-| `fetchHarnessAnalysis` | client.js:47 | frontend/src/__tests__/client.test.js |
-| `fetchHarnessReferences` | client.js:50 | frontend/src/__tests__/client.test.js |
-| `deleteHarnessReference` | client.js:53 | frontend/src/__tests__/client.test.js |
-| `fetchHarnessEvaluations` | client.js:56 | frontend/src/__tests__/client.test.js |
-| `fetchAllHarnessEvaluations` | client.js:59 | frontend/src/__tests__/client.test.js |
-| `patchHarnessEvaluation` | client.js:63 | frontend/src/__tests__/client.test.js |
-| `deleteHarnessEvaluation` | client.js:66 | frontend/src/__tests__/client.test.js |
-| `fetchMe` | client.js:70 | frontend/src/__tests__/client.test.js |
-| `exchangeAuthCode` | client.js:73 | frontend/src/__tests__/client.test.js |
-| `loginWithCliToken` | client.js:76 | frontend/src/__tests__/client.test.js |
-| `getGithubLoginUrl` | client.js:79 | frontend/src/__tests__/client.test.js |
+### harness-log [active]
+하네스 세션 일지(Markdown)를 날짜 기준으로 저장하고 조회한다. 목록 조회 시 summary를 120자로 truncate한다.
 
+엔드포인트: `GET /logs`, `GET /logs/:date`, `POST /logs`
+테이블: harness_logs
+페이지: /lab
+Decisions: 0 | Changelog: 2
+
+### harness-references [active]
+아티클 레퍼런스를 저장·조회·삭제한다. 조회 시 평가 이력(harness_evaluations)을 JOIN하고 tag 필터를 지원한다.
+
+엔드포인트: `GET /references`, `POST /references`, `DELETE /references/:id`
+테이블: harness_references, harness_evaluations
+페이지: /lab
+Decisions: 0 | Changelog: 2
+
+### harness-reviews [active]
+스킬 리뷰 인덱스를 스킬별로 저장하고 조회한다. 저장은 전체 덮어쓰기(upsert) 방식이다.
+
+엔드포인트: `GET /reviews/:skill`, `POST /reviews/:skill`
+테이블: harness_review_index
+페이지: /lab
+Decisions: 0 | Changelog: 2
+
+### harness-viz [active]
+시각화 HTML 파일을 이름 기준으로 저장하고 조회한다. 허용 목록(allowlist)으로 접근 가능한 파일명을 제한한다.
+
+엔드포인트: `GET /html/:name`, `POST /html/:name`
+테이블: harness_viz
+페이지: /lab
+Decisions: 0 | Changelog: 2
+
+### skill-browse [active]
+스킬 목록을 검색·페이지네이션으로 조회한다. 이름별 최신 버전만 반환하고, 이름으로 특정 스킬의 전체 버전 이력도 조회할 수 있다.
+
+엔드포인트: `GET /`, `GET /by-name/:name`
+테이블: skills
+페이지: /
+REQ: REQ-skill-browse
+Decisions: 0 | Changelog: 2
+
+### skill-delete [active]
+스킬을 삭제한다. 소유자(업로더)만 삭제 가능하며, 레거시 스킬(uploader_id 없음)은 인증된 사용자 누구나 삭제 가능하다.
+
+엔드포인트: `DELETE /:id`
+테이블: skills
+페이지: /skills/:id
+Decisions: 0 | Changelog: 2
+
+### skill-detail [active]
+스킬 상세 정보(버전 목록, 첨부 파일 포함)와 개별 첨부 파일을 조회한다.
+
+엔드포인트: `GET /:id`, `GET /:id/files/:fileId`
+테이블: skills, skill_files
+페이지: /skills/:id
+Decisions: 0 | Changelog: 2
+
+### skill-download [active]
+스킬 파일을 다운로드하고 다운로드 카운터를 증가시킨다. ZIP과 단일 MD 두 형식을 지원한다.
+
+엔드포인트: `GET /:id/download`, `POST /:id/download`
+테이블: skills
+페이지: /skills/:id
+Decisions: 0 | Changelog: 2
+
+### skill-upload [active]
+ZIP 또는 단일 MD 파일로 스킬을 업로드한다. 인증이 필요하며, ZIP의 경우 SKILL.md를 추출해 메타데이터를 파싱한다.
+
+엔드포인트: `POST /`
+테이블: skills, skill_files
+페이지: /upload
+Decisions: 0 | Changelog: 2
+
+### system-map [active]
+엔드포인트: `GET /system-map`, `GET /intent`
+Decisions: 0 | Changelog: 0
+
+### user-profile [active]
+JWT로 인증된 사용자의 GitHub 정보(github_id, username)를 반환한다.
+
+엔드포인트: `GET /me`
+페이지: /
+Decisions: 0 | Changelog: 2
+
+## Routes by Domain
+
+### auth.js
+
+| Method | Path | Feature | 인증 |
+|--------|------|---------|------|
+| `GET` | `/github/callback` | github-oauth | 🔓 |
+| `GET` | `/token` | github-oauth | 🔓 |
+| `POST` | `/cli` | github-oauth | 🔓 |
+| `GET` | `/me` | user-profile | 🔒 |
+
+### download.js
+
+| Method | Path | Feature | 인증 |
+|--------|------|---------|------|
+| `GET` | `/:id/download` | skill-download | 🔓 |
+
+### harness.js
+
+| Method | Path | Feature | 인증 |
+|--------|------|---------|------|
+| `GET` | `/logs` | harness-log | 🔓 |
+| `GET` | `/logs/:date` | harness-log | 🔓 |
+| `POST` | `/logs` | harness-log | 🔓 |
+| `GET` | `/blueprints` | harness-blueprint | 🔓 |
+| `GET` | `/blueprints/:skill` | harness-blueprint | 🔓 |
+| `POST` | `/blueprints` | harness-blueprint | 🔓 |
+| `GET` | `/analysis` | harness-analysis | 🔓 |
+| `GET` | `/analysis/:id` | harness-analysis | 🔓 |
+| `POST` | `/analysis` | harness-analysis | 🔓 |
+| `GET` | `/html/:name` | harness-viz | 🔓 |
+| `POST` | `/html/:name` | harness-viz | 🔓 |
+| `GET` | `/references` | harness-references | 🔓 |
+| `POST` | `/references` | harness-references | 🔓 |
+| `GET` | `/evaluations` | harness-evaluations | 🔓 |
+| `GET` | `/evaluations/:skill` | harness-evaluations | 🔓 |
+| `POST` | `/evaluations` | harness-evaluations | 🔓 |
+| `PATCH` | `/evaluations/:id` | harness-evaluations | 🔓 |
+| `GET` | `/reviews/:skill` | harness-reviews | 🔓 |
+| `POST` | `/reviews/:skill` | harness-reviews | 🔓 |
+| `DELETE` | `/evaluations/:id` | harness-evaluations | 🔒 |
+| `GET` | `/system-map` | system-map | 🔒 |
+| `GET` | `/intent` | system-map | 🔒 |
+| `DELETE` | `/references/:id` | harness-references | 🔓 |
+
+### skills.js
+
+| Method | Path | Feature | 인증 |
+|--------|------|---------|------|
+| `GET` | `/` | skill-browse | 🔓 |
+| `GET` | `/by-name/:name` | skill-browse | 🔓 |
+| `GET` | `/:id` | skill-detail | 🔓 |
+| `GET` | `/:id/files/:fileId` | skill-detail | 🔓 |
+| `POST` | `/` | skill-upload | 🔒 |
+| `POST` | `/:id/download` | skill-download | 🔓 |
+| `DELETE` | `/:id` | skill-delete | 🔒 |
+
+## 공유 코드 영향 범위 (call-graph)
+
+| 파일 | 영향 feature 수 | 영향 feature |
+|------|----------------|-------------|
+| backend/src/middleware/auth.js | 15 | github-oauth, user-profile, harness-log, harness-blueprint, harness-analysis... |
+| backend/src/db/database.js | 13 | skill-download, harness-log, harness-blueprint, harness-analysis, harness-viz... |
+| backend/src/middleware/upload.js | 5 | skill-browse, skill-detail, skill-upload, skill-download, skill-delete |
