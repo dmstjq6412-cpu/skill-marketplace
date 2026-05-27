@@ -82,6 +82,9 @@ export const fetchSystemMap = () =>
 export const fetchHarnessIntent = () =>
   api.get('/harness/intent').then(r => r.data);
 
+export const fetchCallGraph = () =>
+  api.get('/harness/call-graph').then(r => r.data);
+
 export const getGithubLoginUrl = () => {
   const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
   const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';

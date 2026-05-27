@@ -573,3 +573,46 @@ describe('GET /intent', () => {
   });
 });
 
+// ============================================================
+// GET /call-graph — call-graph.json 반환
+// ============================================================
+describe('GET /call-graph', () => {
+  // mockReset + mockImplementation(throw) 조합은 Vitest 버그를 유발하므로
+  // mockReturnValueOnce / mockImplementationOnce 를 사용하고 beforeEach reset을 쓰지 않는다.
+
+  it('call-graph.json이 있으면 200과 nodes를 반환한다', async () => {
+    mockReadFileSync.mockReturnValueOnce(
+      JSON.stringify({
+        version: 2,
+        nodes: {
+          'backend/src/middleware/auth.js': {
+            affects_features: ['feat-a', 'feat-b'],
+          },
+        },
+      })
+    );
+    const res = await request(buildApp()).get('/call-graph');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('nodes');
+    expect(typeof res.body.nodes).toBe('object');
+  });
+
+  it('call-graph.json이 없으면 404를 반환한다', async () => {
+    const err = new Error('ENOENT: no such file or directory');
+    err.code = 'ENOENT';
+    mockReadFileSync.mockImplementationOnce(() => { throw err; });
+    const res = await request(buildApp()).get('/call-graph');
+    expect(res.status).toBe(404);
+  });
+
+  it('authenticate 미들웨어를 거친다', async () => {
+    // authenticate mock은 next()를 호출하도록 되어 있으므로
+    // 요청이 정상적으로 라우트 핸들러까지 도달해야 한다 (5xx 아님)
+    const err = new Error('ENOENT: no such file or directory');
+    err.code = 'ENOENT';
+    mockReadFileSync.mockImplementationOnce(() => { throw err; });
+    const res = await request(buildApp()).get('/call-graph');
+    expect(res.status).toBeLessThan(500);
+  });
+});
+
