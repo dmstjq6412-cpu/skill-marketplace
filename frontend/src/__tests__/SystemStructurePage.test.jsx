@@ -8,9 +8,10 @@ import React from 'react';
 // --- Mock: api/client.js ---
 vi.mock('../api/client', () => ({
   fetchSystemMap: vi.fn(),
+  fetchCallGraph: vi.fn(),
 }));
 
-import { fetchSystemMap } from '../api/client';
+import { fetchSystemMap, fetchCallGraph } from '../api/client';
 
 // --- Fixtures ---
 const SYSTEM_MAP = {
@@ -96,6 +97,31 @@ const SYSTEM_MAP = {
   ],
   db_tables: ['skills', 'skill_files', 'harness_logs', 'harness_blueprints', 'harness_viz', 'harness_analysis', 'harness_references', 'harness_evaluations'],
   frontend_routes: ['/', '/skills/:id', '/upload', '/lab', '/system-structure', '/auth/callback'],
+};
+
+const CALL_GRAPH = {
+  version: 2,
+  updated: '2026-05-27',
+  nodes: {
+    'backend/src/middleware/auth.js': {
+      imports: [],
+      imported_by: ['backend/src/routes/auth.js', 'backend/src/routes/harness.js'],
+      features: [],
+      affects_features: ['github-oauth', 'user-profile', 'harness-log', 'harness-blueprint'],
+    },
+    'backend/src/db/database.js': {
+      imports: [],
+      imported_by: ['backend/src/routes/harness.js', 'backend/src/routes/skills.js'],
+      features: [],
+      affects_features: ['harness-log', 'skill-browse', 'skill-upload'],
+    },
+    'backend/src/routes/auth.js': {
+      imports: ['backend/src/middleware/auth.js'],
+      imported_by: [],
+      features: ['github-oauth', 'user-profile'],
+      affects_features: ['github-oauth', 'user-profile'],
+    },
+  },
 };
 
 // Import component AFTER mocks (Red 단계 — 파일 미존재, 실패 정상)
@@ -700,6 +726,231 @@ describe('SystemStructurePage — feature 카드 tables/pages 표시', () => {
         targetCard.querySelector('[data-testid="pages-section"]') ||
         targetCard.querySelector('[data-pages-section]');
       expect(pageSection).toBeNull();
+    });
+  });
+});
+
+// ============================================================
+// 의존성 탭 — 탭 버튼
+// ============================================================
+describe('SystemStructurePage — 의존성 탭 버튼', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchSystemMap.mockResolvedValue(SYSTEM_MAP);
+  });
+
+  it('탭 버튼이 최소 3개 렌더링된다 (기능 지도 + API 목록 + 의존성)', async () => {
+    // 기능 지도, API 목록, 의존성 세 관점을 전환할 수 있는 탭 버튼이 모두 있어야 한다
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabButtons = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabButtons.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+});
+
+// ============================================================
+// 의존성 탭 — 공유 코드 테이블
+// ============================================================
+describe('SystemStructurePage — 의존성 탭 공유 코드 테이블', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchSystemMap.mockResolvedValue(SYSTEM_MAP);
+    fetchCallGraph.mockResolvedValue(CALL_GRAPH);
+  });
+
+  it('의존성 탭 클릭 시 fetchCallGraph가 호출된다', async () => {
+    // 탭 전환 시점에 call-graph 데이터를 로드해야 한다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabs = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabs.length).toBeGreaterThanOrEqual(3);
+    });
+
+    const depTab =
+      document.querySelector('[data-tab="dependency"]') ||
+      Array.from(document.querySelectorAll('[role="tab"], button[data-tab]')).find(t =>
+        t.textContent.match(/의존성|dependency/i)
+      );
+    if (depTab) await user.click(depTab);
+
+    await waitFor(() => {
+      expect(fetchCallGraph).toHaveBeenCalled();
+    });
+  });
+
+  it('affects_features 2개 이상인 파일 수만큼 행이 표시된다', async () => {
+    // 여러 feature에 영향을 주는 공유 코드만 위험 파일로 표시해야 한다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabs = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabs.length).toBeGreaterThanOrEqual(3);
+    });
+
+    const depTab =
+      document.querySelector('[data-tab="dependency"]') ||
+      Array.from(document.querySelectorAll('[role="tab"], button[data-tab]')).find(t =>
+        t.textContent.match(/의존성|dependency/i)
+      );
+    if (depTab) await user.click(depTab);
+
+    const expectedRowCount = Object.values(CALL_GRAPH.nodes).filter(
+      node => node.affects_features.length >= 2
+    ).length;
+
+    await waitFor(() => {
+      const rows = document.querySelectorAll('[data-dep-row]');
+      expect(rows.length).toBe(expectedRowCount);
+    });
+  });
+
+  it('각 행에 파일명(짧은 경로)이 표시된다', async () => {
+    // 공유 코드 파일이 어떤 파일인지 행에서 식별할 수 있어야 한다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabs = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabs.length).toBeGreaterThanOrEqual(3);
+    });
+
+    const depTab =
+      document.querySelector('[data-tab="dependency"]') ||
+      Array.from(document.querySelectorAll('[role="tab"], button[data-tab]')).find(t =>
+        t.textContent.match(/의존성|dependency/i)
+      );
+    if (depTab) await user.click(depTab);
+
+    const sharedNodes = Object.entries(CALL_GRAPH.nodes).filter(
+      ([, node]) => node.affects_features.length >= 2
+    );
+
+    await waitFor(() => {
+      const rows = document.querySelectorAll('[data-dep-row]');
+      expect(rows.length).toBeGreaterThan(0);
+
+      sharedNodes.forEach(([filePath]) => {
+        const fileName = filePath.split('/').pop();
+        const found = Array.from(rows).some(row =>
+          row.textContent.includes(fileName) || row.textContent.includes(filePath)
+        );
+        expect(found).toBe(true);
+      });
+    });
+  });
+
+  it('각 행에 영향 feature 수가 표시된다', async () => {
+    // 영향 범위를 숫자로 표시해 위험도를 빠르게 파악할 수 있어야 한다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabs = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabs.length).toBeGreaterThanOrEqual(3);
+    });
+
+    const depTab =
+      document.querySelector('[data-tab="dependency"]') ||
+      Array.from(document.querySelectorAll('[role="tab"], button[data-tab]')).find(t =>
+        t.textContent.match(/의존성|dependency/i)
+      );
+    if (depTab) await user.click(depTab);
+
+    const sharedNodes = Object.entries(CALL_GRAPH.nodes).filter(
+      ([, node]) => node.affects_features.length >= 2
+    );
+
+    await waitFor(() => {
+      const rows = document.querySelectorAll('[data-dep-row]');
+      expect(rows.length).toBeGreaterThan(0);
+
+      sharedNodes.forEach(([filePath, node]) => {
+        // filePath.split('/').pop()은 middleware/auth.js와 routes/auth.js 모두 'auth.js'를 반환해 모호하다.
+        // 컴포넌트는 filePath.replace('backend/src/', '')로 렌더링하므로 해당 형식으로 매칭한다.
+        const shortPath = filePath.replace('backend/src/', '');
+        const matchingRow = Array.from(rows).find(row =>
+          row.textContent.includes(shortPath)
+        );
+        expect(matchingRow).toBeDefined();
+        expect(matchingRow.textContent).toContain(String(node.affects_features.length));
+      });
+    });
+  });
+
+  it('affects_features가 1개 이하인 파일은 표시되지 않는다', async () => {
+    // 단일 feature에만 영향을 주는 파일은 공유 코드가 아니므로 목록에서 제외해야 한다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabs = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabs.length).toBeGreaterThanOrEqual(3);
+    });
+
+    const depTab =
+      document.querySelector('[data-tab="dependency"]') ||
+      Array.from(document.querySelectorAll('[role="tab"], button[data-tab]')).find(t =>
+        t.textContent.match(/의존성|dependency/i)
+      );
+    if (depTab) await user.click(depTab);
+
+    const excludedNodes = Object.entries(CALL_GRAPH.nodes).filter(
+      ([, node]) => node.affects_features.length < 2
+    );
+
+    const expectedRowCount = Object.values(CALL_GRAPH.nodes).filter(
+      node => node.affects_features.length >= 2
+    ).length;
+
+    await waitFor(() => {
+      const rows = document.querySelectorAll('[data-dep-row]');
+      expect(rows.length).toBe(expectedRowCount);
+
+      excludedNodes.forEach(([filePath]) => {
+        const fileName = filePath.split('/').pop();
+        const found = Array.from(rows).some(row =>
+          row.textContent.includes(fileName) || row.textContent.includes(filePath)
+        );
+        expect(found).toBe(false);
+      });
+    });
+  });
+
+  it('nodes가 비어 있으면 "(공유 코드 없음)" 메시지가 표시된다', async () => {
+    // 공유 코드가 없을 때 빈 화면 대신 명시적 메시지를 보여야 한다
+    fetchCallGraph.mockResolvedValue({ version: 2, nodes: {} });
+
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      const tabs = document.querySelectorAll('[role="tab"], button[data-tab]');
+      expect(tabs.length).toBeGreaterThanOrEqual(3);
+    });
+
+    const depTab =
+      document.querySelector('[data-tab="dependency"]') ||
+      Array.from(document.querySelectorAll('[role="tab"], button[data-tab]')).find(t =>
+        t.textContent.match(/의존성|dependency/i)
+      );
+    if (depTab) await user.click(depTab);
+
+    await waitFor(() => {
+      const noSharedCode =
+        document.querySelector('[data-testid="no-shared-code"]') ||
+        screen.queryByText(/공유 코드 없음/i);
+      expect(noSharedCode).not.toBeNull();
     });
   });
 });

@@ -77,3 +77,20 @@ describe('deleteHarnessEvaluation', () => {
     expect(result).toEqual({ ok: true });
   });
 });
+
+describe('fetchCallGraph', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('GET /harness/call-graph를 호출한다', async () => {
+    const mockData = { version: 2, updated: '2026-05-27', nodes: {} };
+    mockAxiosInstance.get.mockResolvedValueOnce({ data: mockData });
+
+    const { fetchCallGraph } = await import('../api/client');
+    const result = await fetchCallGraph();
+
+    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/harness/call-graph');
+    expect(result).toEqual(mockData);
+  });
+});

@@ -519,6 +519,20 @@ router.get('/intent', authenticate, (req, res) => {
   }
 });
 
+// @feature system-map
+// @desc call-graph 의존성 데이터 반환 (의존성 탭용)
+// @flow call-graph.json 파일 읽기 → nodes JSON 반환, 파일 없으면 404
+// @page /system-structure
+router.get('/call-graph', authenticate, (req, res) => {
+  try {
+    const graphPath = path.join(PROJECT_ROOT, '.harness-lab', 'call-graph.json');
+    const content = readFileSync(graphPath, 'utf8');
+    res.json(JSON.parse(content));
+  } catch {
+    res.status(404).json({ error: 'call-graph.json not found' });
+  }
+});
+
 // @feature harness-references
 // @desc 아티클 레퍼런스 삭제
 // @flow DB DELETE → ok 반환

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchSystemMap } from '../api/client';
+import { fetchSystemMap, fetchCallGraph } from '../api/client';
 
 const METHOD_COLORS = {
   GET:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -232,6 +232,7 @@ export default function SystemStructurePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('feature-map');
+  const [callGraph, setCallGraph] = useState(null);
 
   useEffect(() => {
     fetchSystemMap()
@@ -239,6 +240,14 @@ export default function SystemStructurePage() {
       .catch(err => setError(err.message || '로드 실패'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'dependency') {
+      fetchCallGraph()
+        .then(setCallGraph)
+        .catch(() => setCallGraph({ nodes: {} }));
+    }
+  }, [activeTab]);
 
   if (loading) {
     return (
@@ -298,6 +307,19 @@ export default function SystemStructurePage() {
         >
           API 목록
         </button>
+        <button
+          role="tab"
+          data-tab="dependency"
+          aria-selected={activeTab === 'dependency'}
+          onClick={() => setActiveTab('dependency')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'dependency'
+              ? 'border-violet-500 text-violet-600 dark:text-violet-400'
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+          }`}
+        >
+          의존성
+        </button>
       </div>
 
       {/* 기능 지도 탭 */}
@@ -319,6 +341,78 @@ export default function SystemStructurePage() {
           <DomainSection key={`${domain.name}-${i}`} domain={domain} />
         ))}
       </div>
+
+      {/* 의존성 탭 */}
+      <div data-tab-panel="dependency" className={activeTab !== 'dependency' ? 'hidden' : ''}>
+        <DependencyTable callGraph={callGraph} />
+      </div>
+    </div>
+  );
+}
+
+function DependencyTable({ callGraph }) {
+  if (!callGraph) {
+    return (
+      <p className="text-sm text-slate-400 dark:text-slate-600">로딩 중...</p>
+    );
+  }
+
+  const sharedNodes = Object.entries(callGraph.nodes || {})
+    .filter(([, node]) => (node.affects_features || []).length >= 2)
+    .sort(([, a], [, b]) => b.affects_features.length - a.affects_features.length);
+
+  if (sharedNodes.length === 0) {
+    return (
+      <p className="text-sm text-slate-400 dark:text-slate-600" data-testid="no-shared-code">
+        (공유 코드 없음)
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
+        여러 feature에 영향을 주는 공유 코드입니다. 수정 시 영향 범위를 확인하세요.
+      </p>
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 dark:border-slate-700">
+            <th className="px-4 py-2 text-slate-500 dark:text-slate-400 font-medium">파일</th>
+            <th className="px-4 py-2 text-slate-500 dark:text-slate-400 font-medium w-20 text-center">영향 수</th>
+            <th className="px-4 py-2 text-slate-500 dark:text-slate-400 font-medium">영향받는 feature</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sharedNodes.map(([filePath, node]) => (
+            <tr
+              key={filePath}
+              data-dep-row
+              className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+            >
+              <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">
+                {filePath.replace('backend/src/', '')}
+              </td>
+              <td className="px-4 py-3 text-center">
+                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  {node.affects_features.length}
+                </span>
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex flex-wrap gap-1">
+                  {node.affects_features.map(feat => (
+                    <span
+                      key={feat}
+                      className="inline-block px-2 py-0.5 rounded text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
+                    >
+                      {feat}
+                    </span>
+                  ))}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
