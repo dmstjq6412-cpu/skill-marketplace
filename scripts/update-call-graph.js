@@ -57,8 +57,10 @@ function resolveImport(spec, fromRelPath) {
     else if (fs.existsSync(path.join(ROOT, resolved + '.jsx')))    resolved += '.jsx';
     else if (fs.existsSync(path.join(ROOT, resolved + '.ts')))     resolved += '.ts';
     else if (fs.existsSync(path.join(ROOT, resolved + '.tsx')))    resolved += '.tsx';
-    else if (fs.existsSync(path.join(ROOT, resolved, 'index.js'))) resolved += '/index.js';
+    else if (fs.existsSync(path.join(ROOT, resolved, 'index.js')))  resolved += '/index.js';
     else if (fs.existsSync(path.join(ROOT, resolved, 'index.jsx'))) resolved += '/index.jsx';
+    else if (fs.existsSync(path.join(ROOT, resolved, 'index.ts')))  resolved += '/index.ts';
+    else if (fs.existsSync(path.join(ROOT, resolved, 'index.tsx'))) resolved += '/index.tsx';
     else return null;
   }
   return fs.existsSync(path.join(ROOT, resolved)) ? resolved : null;
