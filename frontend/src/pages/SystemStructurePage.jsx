@@ -1,3 +1,5 @@
+// @feature system-map
+// @route /system-structure
 import React, { useEffect, useState } from 'react';
 import { fetchSystemMap, fetchCallGraph } from '../api/client';
 

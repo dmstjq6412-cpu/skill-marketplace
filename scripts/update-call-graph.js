@@ -38,13 +38,13 @@ function currentCommit() {
 function allTrackedFiles() {
   return cp.execSync('git ls-files', { cwd: ROOT })
     .toString().trim().split('\n')
-    .filter(f => /\.(js|ts)$/.test(f));
+    .filter(f => /\.(js|ts|jsx|tsx)$/.test(f));
 }
 
 function stagedFiles() {
   return cp.execSync('git diff --staged --name-only', { cwd: ROOT })
     .toString().trim().split('\n')
-    .filter(f => /\.(js|ts)$/.test(f));
+    .filter(f => /\.(js|ts|jsx|tsx)$/.test(f));
 }
 
 /** 상대 import 경로 → 프로젝트 루트 기준 상대 경로 */
@@ -53,9 +53,12 @@ function resolveImport(spec, fromRelPath) {
   const dir = path.dirname(path.join(ROOT, fromRelPath));
   let resolved = path.relative(ROOT, path.resolve(dir, spec)).replace(/\\/g, '/');
   if (!path.extname(resolved)) {
-    if (fs.existsSync(path.join(ROOT, resolved + '.js')))         resolved += '.js';
-    else if (fs.existsSync(path.join(ROOT, resolved + '.ts')))    resolved += '.ts';
+    if (fs.existsSync(path.join(ROOT, resolved + '.js')))          resolved += '.js';
+    else if (fs.existsSync(path.join(ROOT, resolved + '.jsx')))    resolved += '.jsx';
+    else if (fs.existsSync(path.join(ROOT, resolved + '.ts')))     resolved += '.ts';
+    else if (fs.existsSync(path.join(ROOT, resolved + '.tsx')))    resolved += '.tsx';
     else if (fs.existsSync(path.join(ROOT, resolved, 'index.js'))) resolved += '/index.js';
+    else if (fs.existsSync(path.join(ROOT, resolved, 'index.jsx'))) resolved += '/index.jsx';
     else return null;
   }
   return fs.existsSync(path.join(ROOT, resolved)) ? resolved : null;

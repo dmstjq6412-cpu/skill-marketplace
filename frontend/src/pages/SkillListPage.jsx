@@ -1,3 +1,5 @@
+// @feature skill-browse
+// @route /
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchSkills } from '../api/client';
 import SearchBar from '../components/SearchBar';

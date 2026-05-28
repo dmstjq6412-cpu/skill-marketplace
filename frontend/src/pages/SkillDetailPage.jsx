@@ -1,3 +1,5 @@
+// @feature skill-detail
+// @route /skills/:id
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { fetchSkill, getDownloadUrl, deleteSkill, fetchSkillFile } from '../api/client';

@@ -1,3 +1,5 @@
+// @feature skill-upload
+// @route /upload
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { uploadSkill } from '../api/client';
