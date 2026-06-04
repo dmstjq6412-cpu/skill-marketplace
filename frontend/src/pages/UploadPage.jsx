@@ -1,3 +1,5 @@
+// @feature skill-upload
+// @route /upload
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { uploadSkill } from '../api/client';
@@ -12,6 +14,7 @@ export default function UploadPage() {
     version: '1.0.0',
     author: '',
     description: '',
+    target_agent: 'claude',
   });
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -97,8 +100,9 @@ export default function UploadPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Skill name */}
           <div>
-            <label className={labelCls}>Skill Name <span className="text-violet-500">*</span></label>
+            <label htmlFor="skill-name" className={labelCls}>Skill Name <span className="text-violet-500">*</span></label>
             <input
+              id="skill-name"
               name="name"
               value={form.name}
               onChange={handleChange}
@@ -112,8 +116,9 @@ export default function UploadPage() {
           {/* Version + Author */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Version <span className="text-violet-500">*</span></label>
+              <label htmlFor="skill-version" className={labelCls}>Version <span className="text-violet-500">*</span></label>
               <input
+                id="skill-version"
                 name="version"
                 value={form.version}
                 onChange={handleChange}
@@ -123,8 +128,9 @@ export default function UploadPage() {
               />
             </div>
             <div>
-              <label className={labelCls}>Author <span className="text-violet-500">*</span></label>
+              <label htmlFor="skill-author" className={labelCls}>Author <span className="text-violet-500">*</span></label>
               <input
+                id="skill-author"
                 name="author"
                 value={form.author}
                 onChange={handleChange}
@@ -137,8 +143,9 @@ export default function UploadPage() {
 
           {/* Description */}
           <div>
-            <label className={labelCls}>Short Description</label>
+            <label htmlFor="skill-description" className={labelCls}>Short Description</label>
             <input
+              id="skill-description"
               name="description"
               value={form.description}
               onChange={handleChange}
@@ -146,6 +153,36 @@ export default function UploadPage() {
               className={inputCls}
             />
           </div>
+
+          {/* Target agent */}
+          <fieldset>
+            <legend className={labelCls}>Target Agent <span className="text-violet-500">*</span></legend>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                ['claude', 'Claude'],
+                ['codex', 'Codex'],
+              ].map(([value, label]) => (
+                <label
+                  key={value}
+                  className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold cursor-pointer transition-colors ${
+                    form.target_agent === value
+                      ? 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300'
+                      : 'border-slate-200 text-slate-500 hover:border-violet-300 dark:border-slate-800 dark:text-slate-400'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="target_agent"
+                    value={value}
+                    checked={form.target_agent === value}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           {/* File upload */}
           <div>

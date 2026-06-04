@@ -50,6 +50,7 @@ const MOCK_SKILL = {
   version: '1.0.0',
   author: 'tester',
   description: 'test desc',
+  target_agent: 'claude',
   readme: '# Git Convention',
   file_type: 'zip',
   downloads: 0,
@@ -78,6 +79,7 @@ describe('POST / (upload skill)', () => {
       .post('/')
       .field('name', 'my-skill')
       .field('author', 'alice')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'my-skill.zip');
 
     expect(res.status).toBe(201);
@@ -101,6 +103,7 @@ describe('POST / (upload skill)', () => {
       .post('/')
       .field('name', 'git-convention')
       .field('author', 'alice')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'git-convention.zip');
 
     expect(res.status).toBe(201);
@@ -127,6 +130,7 @@ describe('POST / (upload skill)', () => {
       .post('/')
       .field('name', 'my-skill')
       .field('author', 'alice')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'my-skill.zip');
 
     const insertFileCalls = mockClient.query.mock.calls.filter(
@@ -143,6 +147,7 @@ describe('POST / (upload skill)', () => {
       .post('/')
       .field('name', 'bad-skill')
       .field('author', 'alice')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'bad-skill.zip');
 
     expect(res.status).toBe(400);
@@ -161,6 +166,7 @@ describe('POST / (upload skill)', () => {
       .post('/')
       .field('name', 'bad-skill')
       .field('author', 'alice')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'bad-skill.zip');
 
     expect(res.status).toBe(500);
@@ -176,6 +182,7 @@ describe('POST / (upload skill)', () => {
       .post('/')
       .field('name', 'simple-skill')
       .field('author', 'alice')
+      .field('target_agent', 'claude')
       .attach('skill_file', mdBuf, 'simple-skill.md');
 
     expect(res.status).toBe(201);
@@ -209,6 +216,7 @@ describe('POST / — author 필드 검증 (버그 수정 회귀 테스트)', () 
     const res = await request(buildApp())
       .post('/')
       .field('name', 'my-skill')
+      .field('target_agent', 'claude')
       // author 필드 미포함
       .attach('skill_file', zipBuf, 'my-skill.zip');
 
@@ -224,6 +232,7 @@ describe('POST / — author 필드 검증 (버그 수정 회귀 테스트)', () 
       .post('/')
       .field('name', 'my-skill')
       .field('author', '')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'my-skill.zip');
 
     expect(res.status).toBe(400);
@@ -238,6 +247,7 @@ describe('POST / — author 필드 검증 (버그 수정 회귀 테스트)', () 
       .post('/')
       .field('name', 'my-skill')
       .field('author', '   ')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'my-skill.zip');
 
     expect(res.status).toBe(400);
@@ -251,6 +261,7 @@ describe('POST / — author 필드 검증 (버그 수정 회귀 테스트)', () 
     await request(buildApp())
       .post('/')
       .field('name', 'my-skill')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'my-skill.zip');
 
     const insertCalls = mockClient.query.mock.calls.filter(
@@ -268,6 +279,7 @@ describe('POST / — author 필드 검증 (버그 수정 회귀 테스트)', () 
       .post('/')
       .field('name', 'my-skill')
       .field('author', '  alice  ')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'my-skill.zip');
 
     expect(res.status).toBe(201);
@@ -280,6 +292,7 @@ describe('POST / — author 필드 검증 (버그 수정 회귀 테스트)', () 
     const res = await request(buildApp())
       .post('/')
       .field('author', 'alice')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'my-skill.zip');
 
     expect(res.status).toBe(400);
@@ -303,10 +316,145 @@ describe('POST / — author 필드 검증 (버그 수정 회귀 테스트)', () 
       .post('/')
       .field('name', 'valid-skill')
       .field('author', 'bob')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'valid-skill.zip');
 
     expect(res.status).toBe(201);
     expect(res.body.id).toBe(1);
+  });
+});
+
+// ============================================================
+// POST / — target_agent 검증 및 저장
+// ============================================================
+describe('POST / — target_agent 검증 및 저장', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPool.connect.mockResolvedValue(mockClient);
+    mockClient.query.mockImplementation((sql) => {
+      if (sql.includes('INSERT INTO skills')) return Promise.resolve({ rows: [{ id: 1 }] });
+      return Promise.resolve({ rows: [] });
+    });
+    mockClient.release.mockResolvedValue(undefined);
+  });
+
+  it('target_agent가 codex이면 INSERT 파라미터에 codex가 포함됨', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'codex-skill')
+      .field('author', 'alice')
+      .field('target_agent', 'codex')
+      .attach('skill_file', zipBuf, 'codex-skill.zip');
+
+    expect(res.status).toBe(201);
+    const insertCall = mockClient.query.mock.calls.find(
+      ([sql]) => sql && sql.includes('INSERT INTO skills')
+    );
+    expect(insertCall).toBeDefined();
+    expect(insertCall[0]).toContain('target_agent');
+    expect(insertCall[1]).toContain('codex');
+  });
+
+  it('target_agent가 claude이면 INSERT 파라미터에 claude가 포함됨', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'claude-skill')
+      .field('author', 'alice')
+      .field('target_agent', 'claude')
+      .attach('skill_file', zipBuf, 'claude-skill.zip');
+
+    expect(res.status).toBe(201);
+    const insertCall = mockClient.query.mock.calls.find(
+      ([sql]) => sql && sql.includes('INSERT INTO skills')
+    );
+    expect(insertCall).toBeDefined();
+    expect(insertCall[1]).toContain('claude');
+  });
+
+  it('target_agent가 없으면 400 반환하고 DB에 연결하지 않음', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'missing-target')
+      .field('author', 'alice')
+      .attach('skill_file', zipBuf, 'missing-target.zip');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/target_agent/);
+    expect(mockPool.connect).not.toHaveBeenCalled();
+  });
+
+  it('target_agent가 허용되지 않은 값이면 400 반환하고 DB에 연결하지 않음', async () => {
+    const zipBuf = makeZip({ 'SKILL.md': '# Hello' });
+
+    const res = await request(buildApp())
+      .post('/')
+      .field('name', 'bad-target')
+      .field('author', 'alice')
+      .field('target_agent', 'cursor')
+      .attach('skill_file', zipBuf, 'bad-target.zip');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/target_agent/);
+    expect(mockPool.connect).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================
+// GET / — target_agent 필터
+// ============================================================
+describe('GET / — target_agent 필터', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('target_agent=codex이면 SQL과 params에 codex 필터가 포함됨', async () => {
+    mockPool.query.mockResolvedValue({
+      rows: [
+        { ...MOCK_SKILL, id: 2, name: 'codex-skill', target_agent: 'codex' },
+      ],
+    });
+
+    const res = await request(buildApp()).get('/?target_agent=codex');
+
+    expect(res.status).toBe(200);
+    expect(mockPool.query).toHaveBeenCalledWith(
+      expect.stringContaining('target_agent'),
+      expect.arrayContaining(['codex'])
+    );
+    expect(res.body.skills).toHaveLength(1);
+    expect(res.body.skills[0].target_agent).toBe('codex');
+  });
+
+  it('target_agent가 없으면 target 필터 없이 전체 목록을 조회함', async () => {
+    mockPool.query.mockResolvedValue({
+      rows: [
+        { ...MOCK_SKILL, id: 1, name: 'claude-skill', target_agent: 'claude' },
+        { ...MOCK_SKILL, id: 2, name: 'codex-skill', target_agent: 'codex' },
+      ],
+    });
+
+    const res = await request(buildApp()).get('/');
+
+    expect(res.status).toBe(200);
+    expect(mockPool.query).toHaveBeenCalledWith(
+      expect.not.stringContaining('target_agent ='),
+      []
+    );
+    expect(res.body.skills.map(s => s.target_agent)).toEqual(['claude', 'codex']);
+  });
+
+  it('target_agent가 허용되지 않은 값이면 400 반환', async () => {
+    const res = await request(buildApp()).get('/?target_agent=cursor');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/target_agent/);
+    expect(mockPool.query).not.toHaveBeenCalled();
   });
 });
 
@@ -341,6 +489,7 @@ describe('GET /:id (skill detail)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ref_files).toHaveLength(2);
+    expect(res.body.target_agent).toBe('claude');
     expect(res.body.ref_files[0].file_path).toBe('references/branch.md');
     expect(res.body.ref_files[1].file_path).toBe('references/commit.md');
   });
@@ -363,6 +512,25 @@ describe('GET /:id (skill detail)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ref_files).toEqual([]);
+  });
+
+  it('상세 조회 SELECT에 target_agent가 포함됨', async () => {
+    mockPool.query.mockImplementation((sql) => {
+      if (sql.includes('FROM skills WHERE id')) {
+        return Promise.resolve({ rows: [MOCK_SKILL] });
+      }
+      if (sql.includes('FROM skill_files')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    await request(buildApp()).get('/1');
+
+    const detailCall = mockPool.query.mock.calls.find(
+      ([sql]) => sql && sql.includes('FROM skills WHERE id')
+    );
+    expect(detailCall[0]).toContain('target_agent');
   });
 
   it('존재하지 않는 id → 404', async () => {
@@ -546,6 +714,7 @@ describe('POST / — owner_github_id 저장 검증', () => {
       .post('/')
       .field('name', 'owned-skill')
       .field('author', 'testuser')
+      .field('target_agent', 'claude')
       .attach('skill_file', zipBuf, 'owned-skill.zip');
 
     expect(res.status).toBe(201);

@@ -1,4 +1,6 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿// @feature harness-lab
+// @route /lab
+import React, { useEffect, useState } from 'react';
 import { fetchHarnessLogs, fetchHarnessLog, fetchHarnessBlueprints, fetchHarnessBlueprintBySkill, fetchHarnessAnalyses, fetchHarnessAnalysis, fetchHarnessReferences, deleteHarnessReference, fetchHarnessEvaluations, fetchAllHarnessEvaluations, patchHarnessEvaluation, deleteHarnessEvaluation, fetchHarnessIntent } from '../api/client';
 import MarkdownViewer from '../components/MarkdownViewer';
 import HarnessCompareView from '../components/HarnessCompareView';

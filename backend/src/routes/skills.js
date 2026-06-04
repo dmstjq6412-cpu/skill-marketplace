@@ -5,6 +5,11 @@ import upload from '../middleware/upload.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
+const TARGET_AGENTS = new Set(['claude', 'codex']);
+
+function isValidTargetAgent(value) {
+  return TARGET_AGENTS.has(value);
+}
 
 function compareVersions(a, b) {
   const pa = (a || '0').split('.').map(Number);
@@ -23,22 +28,30 @@ function compareVersions(a, b) {
 // @page /
 router.get('/', async (req, res) => {
   const pool = getPool();
-  const { search = '', page = 1, limit = 20 } = req.query;
+  const { search = '', page = 1, limit = 20, target_agent } = req.query;
   const pageNum = Number(page);
   const limitNum = Number(limit);
 
+  if (target_agent && !isValidTargetAgent(target_agent)) {
+    return res.status(400).json({ error: 'target_agent must be claude or codex' });
+  }
+
   try {
-    let query, params;
+    const where = [];
+    const params = [];
+
     if (search) {
-      query = `SELECT id, name, version, author, description, file_type, downloads, created_at
-               FROM skills WHERE name ILIKE $1 ORDER BY created_at DESC`;
-      params = [`%${search}%`];
-    } else {
-      query = `SELECT id, name, version, author, description, file_type, downloads, created_at
-               FROM skills ORDER BY created_at DESC`;
-      params = [];
+      params.push(`%${search}%`);
+      where.push(`name ILIKE $${params.length}`);
+    }
+    if (target_agent) {
+      params.push(target_agent);
+      where.push(`target_agent = $${params.length}`);
     }
 
+    const whereClause = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+    const query = `SELECT id, name, version, author, description, target_agent, file_type, downloads, created_at
+                   FROM skills${whereClause} ORDER BY created_at DESC`;
     const { rows } = await pool.query(query, params);
 
     // Group by name, keep only the latest version per skill
@@ -70,7 +83,7 @@ router.get('/by-name/:name', async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, version, author, description, readme, file_type, downloads, created_at, updated_at
+      `SELECT id, name, version, author, description, target_agent, readme, file_type, downloads, created_at, updated_at
        FROM skills WHERE name = $1 ORDER BY created_at DESC`,
       [req.params.name]
     );
@@ -81,7 +94,7 @@ router.get('/by-name/:name', async (req, res) => {
     const skill = rows[0];
 
     const { rows: versions } = await pool.query(
-      `SELECT id, version, created_at, downloads FROM skills WHERE name = $1 ORDER BY created_at DESC`,
+      `SELECT id, version, target_agent, created_at, downloads FROM skills WHERE name = $1 ORDER BY created_at DESC`,
       [skill.name]
     );
     versions.sort((a, b) => compareVersions(b.version, a.version));
@@ -96,13 +109,14 @@ router.get('/by-name/:name', async (req, res) => {
 // @feature skill-detail
 // @desc 스킬 상세 조회 (버전 목록·첨부 파일 목록 포함)
 // @flow DB ID 조회 → 버전+파일 병렬 조회 → 상세 반환
+// @req skill-target-agent
 // @table skills,skill_files
 // @page /skills/:id
 router.get('/:id', async (req, res) => {
   const pool = getPool();
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, version, author, description, readme, file_type, downloads, created_at, updated_at, owner_github_id
+      `SELECT id, name, version, author, description, target_agent, readme, file_type, downloads, created_at, updated_at, owner_github_id
        FROM skills WHERE id = $1`,
       [Number(req.params.id)]
     );
@@ -111,7 +125,7 @@ router.get('/:id', async (req, res) => {
     const skill = rows[0];
     const [versionsResult, filesResult] = await Promise.all([
       pool.query(
-        `SELECT id, version, created_at, downloads FROM skills WHERE name = $1 ORDER BY created_at DESC`,
+        `SELECT id, version, target_agent, created_at, downloads FROM skills WHERE name = $1 ORDER BY created_at DESC`,
         [skill.name]
       ),
       pool.query(
@@ -150,19 +164,23 @@ router.get('/:id/files/:fileId', async (req, res) => {
 
 // @feature skill-upload
 // @desc 스킬 업로드 — ZIP 또는 단일 MD 파일, 인증 필요
-// @flow 인증 확인 → multipart 파싱 → ZIP이면 SKILL.md 추출 → DB 저장 → id 반환
+// @flow 인증 확인 → multipart 파싱 → target_agent 검증 → ZIP이면 SKILL.md 추출 → DB 저장 → id 반환
+// @req skill-target-agent
 // @table skills,skill_files
 // @page /upload
 // [BUG FIX] author 필드가 없거나 빈 문자열/공백만 있는 경우 400 반환
 // 기존: !author 는 빈 문자열('')에만 작동하고 공백(' ')은 통과시키는 문제 존재
 // 수정: author를 trim() 한 뒤 falsy 체크하여 공백 문자열도 거부
 router.post('/', authenticate, upload.single('skill_file'), async (req, res) => {
-  const { name, version = '1.0.0', author, description = '' } = req.body;
+  const { name, version = '1.0.0', author, description = '', target_agent } = req.body;
 
   // [FIX] author가 없거나, 빈 문자열이거나, 공백만 있으면 400 반환
   const trimmedAuthor = (author || '').trim();
-  if (!name || !trimmedAuthor || !req.file) {
-    return res.status(400).json({ error: 'name, author, and skill_file are required' });
+  if (!name || !trimmedAuthor || !target_agent || !req.file) {
+    return res.status(400).json({ error: 'name, author, target_agent, and skill_file are required' });
+  }
+  if (!isValidTargetAgent(target_agent)) {
+    return res.status(400).json({ error: 'target_agent must be claude or codex' });
   }
 
   const isZip = req.file.originalname.endsWith('.zip');
@@ -192,9 +210,9 @@ router.post('/', authenticate, upload.single('skill_file'), async (req, res) => 
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO skills (name, version, author, description, readme, filename, file_type, file_data, owner_github_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [name, version, trimmedAuthor, description, readme, req.file.originalname, isZip ? 'zip' : 'md', req.file.buffer, req.user.github_id]
+      `INSERT INTO skills (name, version, author, description, target_agent, readme, filename, file_type, file_data, owner_github_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [name, version, trimmedAuthor, description, target_agent, readme, req.file.originalname, isZip ? 'zip' : 'md', req.file.buffer, req.user.github_id]
     );
     const skillId = rows[0].id;
 

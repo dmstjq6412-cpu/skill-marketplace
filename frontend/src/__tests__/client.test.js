@@ -78,6 +78,34 @@ describe('deleteHarnessEvaluation', () => {
   });
 });
 
+describe('fetchSkills', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('target_agent가 주어지면 skills 목록 query params에 포함한다', async () => {
+    mockAxiosInstance.get.mockResolvedValueOnce({ data: { skills: [], total: 0 } });
+
+    const { fetchSkills } = await import('../api/client');
+    await fetchSkills('guard', 2, 'codex');
+
+    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/skills', {
+      params: { search: 'guard', page: 2, limit: 20, target_agent: 'codex' },
+    });
+  });
+
+  it('target_agent가 all이면 target_agent query를 보내지 않는다', async () => {
+    mockAxiosInstance.get.mockResolvedValueOnce({ data: { skills: [], total: 0 } });
+
+    const { fetchSkills } = await import('../api/client');
+    await fetchSkills('', 1, 'all');
+
+    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/skills', {
+      params: { search: '', page: 1, limit: 20 },
+    });
+  });
+});
+
 describe('fetchCallGraph', () => {
   beforeEach(() => {
     vi.clearAllMocks();

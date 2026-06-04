@@ -1,3 +1,5 @@
+// @feature skill-detail
+// @route /skills/:id
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { fetchSkill, getDownloadUrl, deleteSkill, fetchSkillFile } from '../api/client';
@@ -105,6 +107,7 @@ export default function SkillDetailPage({ user }) {
   }
 
   const gradient = getGradient(skill.name || '');
+  const targetLabel = skill.target_agent === 'codex' ? 'Codex' : 'Claude';
 
   return (
     <div className="max-w-5xl mx-auto px-5 py-8 animate-fade-in-up">
@@ -160,6 +163,16 @@ export default function SkillDetailPage({ user }) {
                 <span className="text-slate-400 dark:text-slate-600">Version</span>
                 <span className="font-mono text-xs font-medium text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 border border-violet-200/60 dark:border-violet-500/20 px-2 py-0.5 rounded-full">
                   v{skill.version}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 dark:text-slate-600">Target</span>
+                <span className={`text-xs font-semibold border px-2 py-0.5 rounded-full ${
+                  skill.target_agent === 'codex'
+                    ? 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200/70 dark:border-sky-500/20'
+                    : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/70 dark:border-emerald-500/20'
+                }`}>
+                  {targetLabel}
                 </span>
               </div>
               <div className="flex items-center justify-between">
