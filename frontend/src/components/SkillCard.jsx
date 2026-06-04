@@ -34,15 +34,17 @@ function getGradient(name) {
  *   - id         {number}   스킬 ID (onSelect 없을 때 navigate에 사용, 선택적)
  *   - version    {string}   스킬 버전 (선택적)
  *   - description {string}  스킬 설명 (선택적)
+ *   - target_agent {string} 대상 에이전트: claude | codex (선택적)
  *   - created_at {string}   생성일 (선택적)
  */
-export default function SkillCard({ id, name, version, author, description, downloads, created_at, onSelect }) {
+export default function SkillCard({ id, name, version, author, description, target_agent, downloads, created_at, onSelect }) {
   const navigate = useNavigate();
   const gradient = getGradient(name || '');
+  const targetLabel = target_agent === 'codex' ? 'Codex' : 'Claude';
 
   function handleClick() {
     if (onSelect) {
-      onSelect({ id, name, version, author, description, downloads, created_at });
+      onSelect({ id, name, version, author, description, target_agent, downloads, created_at });
     } else {
       navigate(`/skills/${id}`);
     }
@@ -71,6 +73,16 @@ export default function SkillCard({ id, name, version, author, description, down
         </div>
         <span className="text-[11px] font-mono font-medium bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 px-2 py-0.5 rounded-full flex-shrink-0 border border-violet-200/60 dark:border-violet-500/20">
           v{version}
+        </span>
+      </div>
+
+      <div className="flex items-center">
+        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+          target_agent === 'codex'
+            ? 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200/70 dark:border-sky-500/20'
+            : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/70 dark:border-emerald-500/20'
+        }`}>
+          {targetLabel}
         </span>
       </div>
 

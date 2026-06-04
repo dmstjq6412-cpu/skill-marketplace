@@ -10,15 +10,21 @@ CREATE TABLE IF NOT EXISTS skills (
     file_data       BYTEA,
     downloads       INTEGER NOT NULL DEFAULT 0,
     owner_github_id BIGINT,
+    target_agent    TEXT    NOT NULL DEFAULT 'claude',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
 CREATE INDEX IF NOT EXISTS idx_skills_created_at ON skills(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_skills_target_agent ON skills(target_agent);
 
 -- 기존 테이블에 owner_github_id 컬럼이 없으면 추가 (마이그레이션)
 ALTER TABLE skills ADD COLUMN IF NOT EXISTS owner_github_id BIGINT;
+
+-- 기존 테이블에 target_agent 컬럼이 없으면 추가하고 기존 스킬은 Claude용으로 간주
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS target_agent TEXT NOT NULL DEFAULT 'claude';
+UPDATE skills SET target_agent = 'claude' WHERE target_agent IS NULL;
 
 -- 인증 도입 이전에 업로드된 레거시 스킬의 소유권을 초기 관리자(dmstjq6412-cpu)로 귀속
 UPDATE skills SET owner_github_id = 268508199 WHERE owner_github_id IS NULL;

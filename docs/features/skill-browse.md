@@ -16,17 +16,22 @@ source-req: REQ-skill-browse
 - GET /api/skills/by-name/:name
 
 ## Implementation Flow
-GET /: search/page/limit 파라미터 파싱 → DB 조회(이름별 그룹핑, 최신 버전만) → 페이지네이션 메타 포함 응답
+GET /: search/page/limit/target_agent 파라미터 파싱 → DB 조회(이름별 그룹핑, 최신 버전만) → 페이지네이션 메타 포함 응답
 GET /by-name/:name: DB 이름 exact match 조회 → 버전 내림차순 정렬 → 전체 버전 목록 반환
 
 ## Connected
 - Tables: skills
 - Pages: /
-- REQs: REQ-skill-browse
+- REQs: REQ-skill-browse, REQ-skill-target-agent
 
 ## Decisions
+### FD-1: target 필터는 서버 query 기준으로 적용
+- **현재 결정**: 목록 target 필터는 `GET /api/skills?target_agent={target}` 서버 query로 적용한다.
+- **이유**: 페이지네이션 total/page가 target 필터 기준과 일치해야 한다.
+- **출처 REQ**: REQ-skill-target-agent TD-4
 
 ## Changelog
 | 날짜 | 변경 내용 | 이유 | REQ | 타입 |
 |------|---------|------|-----|------|
 | 2026-05-26 | 최초 생성 | Feature 파일 일괄 생성 | REQ-skill-browse | 신규 |
+| 2026-06-02 | Claude/Codex 대상 필터링 요구사항 연결 | 스킬 목록을 target_agent 기준으로 조회 | REQ-skill-target-agent | 수정 |

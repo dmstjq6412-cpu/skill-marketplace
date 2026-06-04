@@ -79,3 +79,27 @@
 - **결정**: `App.jsx`에서 `<Route path="([^"]+)"` 정규식으로 path 값만 추출
 - **이유**: 컴포넌트 이름보다 path가 새 팀원에게 더 직접적.
 - **충돌 시 확인**: 중첩 라우터가 생기면 App.jsx 외 파일도 파싱 필요
+
+---
+## 2026-06-02 | REQ-skill-target-agent | TD-1: target 구분은 DB 컬럼으로 관리
+- **결정**: `skills.target_agent` 컬럼으로 Claude/Codex 구분을 저장한다.
+- **이유**: 목록, 상세, 업로드, 다운로드 흐름에서 공통으로 쓰는 제품 데이터이므로 파일 경로나 frontmatter만으로 관리하면 필터링과 페이지네이션이 불안정하다.
+- **충돌 시 확인**: 대상별 artifact 구조가 별도 테이블을 요구할 만큼 복잡해질 때 재검토한다.
+
+---
+## 2026-06-02 | REQ-skill-target-agent | TD-2: 기존 스킬은 claude로 간주
+- **결정**: 기존 row의 `target_agent` 기본값은 `claude`다.
+- **이유**: 현재 marketplace의 기존 스킬은 대부분 Claude용으로 운영되어 왔고, 기존 데이터가 필터에서 사라지면 사용성이 깨진다.
+- **충돌 시 확인**: 기존 스킬 중 Codex용으로 재분류해야 할 데이터가 대량 확인될 때 재검토한다.
+
+---
+## 2026-06-02 | REQ-skill-target-agent | TD-3: 업로드 row 하나는 하나의 target만 가진다
+- **결정**: `skills` row 하나는 하나의 `target_agent`만 가진다.
+- **이유**: 현재 요구사항은 target별 업로드와 필터링이며, 하나의 logical skill 아래 여러 artifact를 관리하는 운영 불편은 아직 검증되지 않았다.
+- **충돌 시 확인**: 같은 name/version의 Claude/Codex 스킬을 하나의 상세 화면에서 함께 관리해야 하는 운영 요구가 반복되면 `skill_artifacts` 분리 구조를 재검토한다.
+
+---
+## 2026-06-02 | REQ-skill-target-agent | TD-4: 필터는 서버 query 기준으로 적용
+- **결정**: 목록 target 필터는 `GET /api/skills?target_agent={target}` 서버 query로 적용한다.
+- **이유**: 클라이언트에서 받은 목록만 필터링하면 total/page가 필터 기준과 어긋날 수 있다.
+- **충돌 시 확인**: 서버 페이지네이션을 제거하거나 전체 목록을 클라이언트에 로드하는 구조로 바뀔 때 재검토한다.

@@ -34,6 +34,7 @@ const BASE_SKILL = {
   version: '2.1.0',
   author: 'tester',
   description: '팀 Git 컨벤션',
+  target_agent: 'claude',
   readme: '# Git Convention Skill',
   file_type: 'zip',
   downloads: 42,
@@ -97,6 +98,29 @@ describe('Reference Files 섹션', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText('3')).toBeInTheDocument());
+  });
+});
+
+// ============================================================
+// Target Agent 표시
+// ============================================================
+describe('Target Agent 표시', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('target_agent가 claude이면 Claude 배지가 표시됨', async () => {
+    mockFetchSkill.mockResolvedValue({ ...BASE_SKILL, target_agent: 'claude' });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Claude')).toBeInTheDocument());
+  });
+
+  it('target_agent가 codex이면 Codex 배지가 표시됨', async () => {
+    mockFetchSkill.mockResolvedValue({ ...BASE_SKILL, target_agent: 'codex' });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Codex')).toBeInTheDocument());
   });
 });
 

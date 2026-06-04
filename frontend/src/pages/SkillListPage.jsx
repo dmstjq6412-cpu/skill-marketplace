@@ -29,12 +29,13 @@ export default function SkillListPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [targetAgent, setTargetAgent] = useState('all');
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async (q, p) => {
+  const load = useCallback(async (q, p, target) => {
     setLoading(true);
     try {
-      const data = await fetchSkills(q, p);
+      const data = await fetchSkills(q, p, target);
       setSkills(data.skills);
       setTotal(data.total);
     } finally {
@@ -45,14 +46,15 @@ export default function SkillListPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setPage(1);
-      load(search, 1);
+      load(search, 1, targetAgent);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, load]);
+  }, [search, targetAgent, load]);
 
   useEffect(() => {
-    load(search, page);
-  }, [page]);
+    if (page === 1) return;
+    load(search, page, targetAgent);
+  }, [page, search, targetAgent, load]);
 
   const totalPages = Math.ceil(total / 20);
 
@@ -82,7 +84,7 @@ export default function SkillListPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-5 py-8">
         {/* Stats bar */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           {!loading && (
             <p className="text-sm text-slate-500 dark:text-slate-500">
               {total === 0 ? 'No skills found' : (
@@ -94,6 +96,29 @@ export default function SkillListPage() {
               )}
             </p>
           )}
+          <div className="inline-flex w-fit rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111218] p-1">
+            {[
+              ['all', 'All'],
+              ['claude', 'Claude'],
+              ['codex', 'Codex'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setTargetAgent(value);
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  targetAgent === value
+                    ? 'bg-violet-600 text-white'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Grid */}

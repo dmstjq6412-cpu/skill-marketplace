@@ -12,8 +12,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const fetchSkills = (search = '', page = 1) =>
-  api.get('/skills', { params: { search, page, limit: 20 } }).then(r => r.data);
+export const fetchSkills = (search = '', page = 1, targetAgent = 'all') => {
+  const params = { search, page, limit: 20 };
+  if (targetAgent && targetAgent !== 'all') params.target_agent = targetAgent;
+  return api.get('/skills', { params }).then(r => r.data);
+};
 
 export const fetchSkill = (id) =>
   api.get(`/skills/${id}`).then(r => r.data);

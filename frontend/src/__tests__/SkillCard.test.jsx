@@ -23,6 +23,7 @@ const MOCK_SKILL = {
   version: '1.0.0',
   author: 'alice',
   description: '팀 Git 컨벤션 스킬',
+  target_agent: 'claude',
   downloads: 120,
   created_at: '2026-01-01T00:00:00Z',
 };
@@ -69,6 +70,16 @@ describe('SkillCard 렌더링', () => {
     expect(screen.getByText('No description provided.')).toBeInTheDocument();
   });
 
+  it('target_agent가 claude이면 Claude 배지가 표시됨', () => {
+    renderCard({ target_agent: 'claude' });
+    expect(screen.getByText('Claude')).toBeInTheDocument();
+  });
+
+  it('target_agent가 codex이면 Codex 배지가 표시됨', () => {
+    renderCard({ target_agent: 'codex' });
+    expect(screen.getByText('Codex')).toBeInTheDocument();
+  });
+
   it('role="button" 속성이 있어 접근성을 제공함', () => {
     renderCard();
     expect(screen.getByRole('button')).toBeInTheDocument();
@@ -104,6 +115,7 @@ describe('SkillCard 클릭 동작 - onSelect', () => {
         name: 'git-convention',
         author: 'alice',
         downloads: 120,
+        target_agent: 'claude',
       })
     );
   });
