@@ -1,6 +1,6 @@
 import express from 'express';
 import { execSync } from 'child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { getPool } from '../db/database.js';
@@ -516,6 +516,25 @@ router.get('/intent', authenticate, (req, res) => {
     res.json({ content });
   } catch {
     res.json({ content: '' });
+  }
+});
+
+// @feature system-map
+// @desc 하네스 의도 문서(docs/harness-intent.md) 저장
+// @flow 인증 확인 → content 검증 → 파일 저장 → ok 반환
+// @page /lab
+router.post('/intent', authenticate, (req, res) => {
+  try {
+    const { content } = req.body;
+    if (typeof content !== 'string' || content.length === 0) {
+      return res.status(400).json({ error: 'content is required' });
+    }
+    const intentPath = path.join(PROJECT_ROOT, 'docs', 'harness-intent.md');
+    writeFileSync(intentPath, content, 'utf8');
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error('[intent] write failed:', err.message);
+    res.status(500).json({ error: 'Failed to save intent' });
   }
 });
 

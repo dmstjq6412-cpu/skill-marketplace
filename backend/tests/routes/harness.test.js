@@ -5,11 +5,12 @@ import express from 'express';
 const mockPool = vi.hoisted(() => ({ query: vi.fn() }));
 const mockExecSync = vi.hoisted(() => vi.fn());
 const mockReadFileSync = vi.hoisted(() => vi.fn());
+const mockWriteFileSync = vi.hoisted(() => vi.fn());
 vi.mock('../../src/db/database.js', () => ({ getPool: () => mockPool }));
 vi.mock('../../src/middleware/auth.js', () => ({ authenticate: (req, res, next) => next() }));
 vi.mock('child_process', () => ({ execSync: mockExecSync }));
-vi.mock('fs', () => ({ readFileSync: mockReadFileSync }));
-vi.mock('node:fs', () => ({ readFileSync: mockReadFileSync }));
+vi.mock('fs', () => ({ readFileSync: mockReadFileSync, writeFileSync: mockWriteFileSync }));
+vi.mock('node:fs', () => ({ readFileSync: mockReadFileSync, writeFileSync: mockWriteFileSync }));
 
 const { default: harnessRouter } = await import('../../src/routes/harness.js');
 
@@ -22,6 +23,10 @@ function buildApp() {
 
 const LOG_CONTENT = `# Harness Lab — 2026-04-08\n\n## 작업 요약\nharness-lab 기능 구현\n\n## 개선 포인트\n테스트 누락 발견`;
 const BLUEPRINT_BODY = { skill: 'tdd-guard-claude', date: '2026-04-08', change: '초기 생성', reason: '테스트 자동화' };
+const BLUEPRINT_HISTORY_ROWS = [
+  { date: '2026-04-08', change: '초기 생성', reason: '', issues: [], articles: [] },
+  { date: '2026-04-09', change: '개선', reason: '...', issues: [], articles: [] },
+];
 
 // ============================================================
 // GET /logs
@@ -121,14 +126,18 @@ describe('GET /blueprints', () => {
   beforeEach(() => mockPool.query.mockReset());
 
   it('스킬 목록과 최신 entry를 반환', async () => {
+    const latestBlueprint = { skill: 'tdd-guard-claude', date: '2026-04-08', change: '초기 생성', reason: '', entry_count: '2' };
     mockPool.query.mockResolvedValueOnce({
-      rows: [{ skill: 'tdd-guard-claude', date: '2026-04-08', change: '초기 생성', reason: '', entry_count: '2' }],
+      rows: [latestBlueprint],
     });
     const res = await request(buildApp()).get('/blueprints');
     expect(res.status).toBe(200);
-    expect(res.body.skills[0].skill).toBe('tdd-guard-claude');
-    expect(res.body.skills[0].entry_count).toBe(2);
-    expect(res.body.skills[0].latest).toMatchObject({ date: '2026-04-08', change: '초기 생성' });
+    expect(res.body.skills[0].skill).toBe(latestBlueprint.skill);
+    expect(res.body.skills[0].entry_count).toBe(Number(latestBlueprint.entry_count));
+    expect(res.body.skills[0].latest).toMatchObject({
+      date: latestBlueprint.date,
+      change: latestBlueprint.change,
+    });
   });
 
   it('blueprint 없으면 빈 배열 반환', async () => {
@@ -147,15 +156,15 @@ describe('GET /blueprints/:skill', () => {
 
   it('존재하는 스킬의 전체 히스토리 반환', async () => {
     mockPool.query.mockResolvedValueOnce({
-      rows: [
-        { date: '2026-04-08', change: '초기 생성', reason: '', issues: [], articles: [] },
-        { date: '2026-04-09', change: '개선', reason: '...', issues: [], articles: [] },
-      ],
+      rows: BLUEPRINT_HISTORY_ROWS,
     });
     const res = await request(buildApp()).get('/blueprints/tdd-guard-claude');
     expect(res.status).toBe(200);
     expect(res.body.skill).toBe('tdd-guard-claude');
-    expect(res.body.entries).toHaveLength(2);
+    expect(res.body.entries).toHaveLength(BLUEPRINT_HISTORY_ROWS.length);
+    BLUEPRINT_HISTORY_ROWS.forEach(row => {
+      expect(res.body.entries).toEqual(expect.arrayContaining([expect.objectContaining(row)]));
+    });
   });
 
   it('존재하지 않는 스킬은 404 반환', async () => {
@@ -570,6 +579,41 @@ describe('GET /intent', () => {
     const res = await request(buildApp()).get('/intent');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('content', '');
+  });
+});
+
+// ============================================================
+// POST /intent — harness-intent.md 내용 저장
+// ============================================================
+describe('POST /intent', () => {
+  beforeEach(() => {
+    mockWriteFileSync.mockReset();
+  });
+
+  it('content를 docs/harness-intent.md에 저장하고 ok를 반환한다', async () => {
+    const INTENT_CONTENT = '# Harness Intent\n\nDB-risk change는 evidence 없이 지나가지 못한다.';
+
+    const res = await request(buildApp())
+      .post('/intent')
+      .send({ content: INTENT_CONTENT });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ ok: true });
+    expect(mockWriteFileSync).toHaveBeenCalledOnce();
+    const [intentPath, content, encoding] = mockWriteFileSync.mock.calls[0];
+    expect(intentPath.replaceAll('\\', '/')).toMatch(/docs\/harness-intent\.md$/);
+    expect(content).toBe(INTENT_CONTENT);
+    expect(encoding).toBe('utf8');
+  });
+
+  it('content가 없거나 문자열이 아니면 400을 반환하고 저장하지 않는다', async () => {
+    const res = await request(buildApp())
+      .post('/intent')
+      .send({ content: '' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'content is required' });
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
   });
 });
 
