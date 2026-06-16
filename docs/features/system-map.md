@@ -2,7 +2,7 @@
 name: system-map
 status: active
 created: 2026-05-21
-last-modified: 2026-05-27
+last-modified: 2026-06-16
 source-req: REQ-system-map-view
 ---
 
@@ -25,9 +25,15 @@ GET /api/harness/call-graph: 인증 확인 → .harness-lab/call-graph.json 파�
 ## Connected
 - Tables: (없음 — DB 직접 사용 없음, generate-system-map.js가 파일 파싱)
 - Pages: /system-structure
-- REQs: REQ-system-map-view, REQ-feature-map-view, REQ-system-map-layer-context
+- REQs: REQ-system-map-view, REQ-feature-map-view, REQ-system-map-layer-context, REQ-system-map-feature-relations
 
 ## Decisions
+
+### FD-4: feature relation은 새 탭이 아니라 기능 지도 카드 안에서 제한적으로 표시
+- **현재 결정**: feature 간 연결은 별도 Codebase 탭을 만들지 않고, 기존 기능 지도 카드 확장 영역에서 `Related features`로 표시한다. 연결 근거는 shared table, shared page, call-graph `affects_features` 기반 shared code로 제한한다.
+- **이유**: 기능 지도, API 목록, 의존성 탭이 이미 같은 codebase 구조 정보를 서로 다른 관점으로 보여주고 있다. 새 탭을 추가하면 기능 지도/의존성 탭과 중복되므로, feature 중심 연결은 기능 지도 카드 안에 두고 의존성 탭은 shared code 파일 중심 보조 뷰로 유지한다.
+- **출처**: REQ-system-map-feature-relations (TD-1, TD-2)
+- **충돌 시 확인**: related feature 정보가 카드 안에서 과밀해지거나, 프론트 계산 로직이 재사용 불가능할 정도로 커지면 backend/script에서 `feature_links`를 내려주는 구조 또는 별도 상세 패널을 재검토한다.
 
 ### FD-3: call-graph 엔드포인트 — 정적 파일 읽기 방식 (런타임 생성 미사용)
 - **현재 결정**: `GET /call-graph`는 `scripts/update-call-graph.js`가 커밋 시점에 생성한 `.harness-lab/call-graph.json`을 읽어 반환. `/system-map`처럼 API 호출마다 동적 생성하지 않음. 파일 없으면 404.
@@ -57,3 +63,4 @@ GET /api/harness/call-graph: 인증 확인 → .harness-lab/call-graph.json 파�
 | 2026-05-27 | Flow 변경: GET /call-graph 엔드포인트 추가 — call-graph.json 읽기 반환 (파일 없으면 404) | system-structure 의존성 탭 공유 코드 테이블 뷰 제공을 위해 | - | A |
 | 2026-05-27 | FD-3 추가: call-graph 엔드포인트 정적 파일 읽기 방식 결정 | AST 파싱 비용 + 커밋 단위 변경 특성상 런타임 생성 불필요 | - | FD |
 | 2026-05-27 | Endpoints 목록에 GET /intent, GET /call-graph 추가 | 기존 누락 항목 보완 | - | A |
+| 2026-06-16 | 기능 지도 카드에 Related features 표시 추가 — shared table/page/shared code 근거 표시 | 기능들이 codebase 안에서 어떻게 얽혀 있는지 feature 중심으로 파악하기 위해 | REQ-system-map-feature-relations | 수정 |

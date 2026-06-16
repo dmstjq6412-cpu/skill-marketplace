@@ -94,6 +94,40 @@ const SYSTEM_MAP = {
       tables: [],
       pages: [],
     },
+    {
+      name: 'harness-blueprint',
+      desc: '스킬 개선 히스토리를 관리한다',
+      flow: 'GET /blueprints → DB 조회 → 목록 반환',
+      req_slug: null,
+      routes: [
+        { method: 'GET', path: '/blueprints', auth: false },
+      ],
+      tests: ['스킬 목록과 최신 entry를 반환'],
+      tables: ['harness_blueprints'],
+      pages: ['/lab'],
+    },
+    {
+      name: 'harness-log-export',
+      desc: '하네스 로그를 내보낸다',
+      flow: 'GET /logs/export → DB 조회 → 파일 생성',
+      req_slug: null,
+      routes: [],
+      tests: [],
+      tables: ['harness_logs'],
+      pages: [],
+    },
+    {
+      name: 'skill-browse',
+      desc: '스킬 목록을 조회한다',
+      flow: 'GET /skills → DB 조회 → 목록 반환',
+      req_slug: null,
+      routes: [
+        { method: 'GET', path: '/', auth: false },
+      ],
+      tests: ['스킬 목록을 반환'],
+      tables: ['skills'],
+      pages: ['/'],
+    },
   ],
   db_tables: ['skills', 'skill_files', 'harness_logs', 'harness_blueprints', 'harness_viz', 'harness_analysis', 'harness_references', 'harness_evaluations'],
   frontend_routes: ['/', '/skills/:id', '/upload', '/lab', '/system-structure', '/auth/callback'],
@@ -159,6 +193,156 @@ describe('SystemStructurePage — 로딩/에러 상태', () => {
         screen.queryByText(/오류|에러|error|실패|failed/i) ||
           document.querySelector('[data-testid="error"]')
       ).not.toBeNull();
+    });
+  });
+});
+
+// ============================================================
+// 기능 지도 탭 — related features codebase 연결 뷰
+// ============================================================
+describe('SystemStructurePage — feature 카드 related features', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchSystemMap.mockResolvedValue(SYSTEM_MAP);
+    fetchCallGraph.mockResolvedValue(CALL_GRAPH);
+  });
+
+  it('기능 지도는 related feature 계산을 위해 call-graph를 로드한다', async () => {
+    // shared code 관계는 system-map만으로 알 수 없으므로 기능 지도에서도 call-graph를 읽어야 한다
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      expect(fetchCallGraph).toHaveBeenCalled();
+    });
+  });
+
+  it('카드를 펼치면 같은 table을 공유하는 related feature와 이유가 표시된다 (AC-1, AC-4)', async () => {
+    // shared table은 기능 간 데이터 결합을 보여주는 metadata 근거다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-feature-card]').length).toBe(SYSTEM_MAP.features.length);
+    });
+
+    const sourceFeature = SYSTEM_MAP.features.find(f => f.name === 'harness-log');
+    const relatedFeature = SYSTEM_MAP.features.find(f =>
+      f.name !== sourceFeature.name &&
+      f.tables.some(table => sourceFeature.tables.includes(table))
+    );
+    expect(relatedFeature).toBeDefined();
+
+    const sourceCard = Array.from(document.querySelectorAll('[data-feature-card]'))
+      .find(card => card.textContent.includes(sourceFeature.name));
+    await user.click(sourceCard.querySelector('[data-toggle], button'));
+
+    await waitFor(() => {
+      const relatedSection = sourceCard.querySelector('[data-related-features]');
+      expect(relatedSection).not.toBeNull();
+      expect(relatedSection.textContent).toContain(relatedFeature.name);
+      sourceFeature.tables
+        .filter(table => relatedFeature.tables.includes(table))
+        .forEach(table => expect(relatedSection.textContent).toContain(table));
+    });
+  });
+
+  it('카드를 펼치면 같은 page를 공유하는 related feature와 이유가 표시된다 (AC-2, AC-4)', async () => {
+    // shared page는 사용자가 같은 화면에서 만나는 feature 관계를 보여준다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-feature-card]').length).toBe(SYSTEM_MAP.features.length);
+    });
+
+    const sourceFeature = SYSTEM_MAP.features.find(f => f.name === 'harness-log');
+    const relatedFeature = SYSTEM_MAP.features.find(f =>
+      f.name !== sourceFeature.name &&
+      f.pages.some(page => sourceFeature.pages.includes(page))
+    );
+    expect(relatedFeature).toBeDefined();
+
+    const sourceCard = Array.from(document.querySelectorAll('[data-feature-card]'))
+      .find(card => card.textContent.includes(sourceFeature.name));
+    await user.click(sourceCard.querySelector('[data-toggle], button'));
+
+    await waitFor(() => {
+      const relatedSection = sourceCard.querySelector('[data-related-features]');
+      expect(relatedSection).not.toBeNull();
+      expect(relatedSection.textContent).toContain(relatedFeature.name);
+      sourceFeature.pages
+        .filter(page => relatedFeature.pages.includes(page))
+        .forEach(page => expect(relatedSection.textContent).toContain(page));
+    });
+  });
+
+  it('카드를 펼치면 shared code 영향권에 함께 있는 related feature와 이유가 표시된다 (AC-3, AC-4)', async () => {
+    // call-graph affects_features는 같은 shared code 변경에 같이 영향받는 feature 관계를 제공한다
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      expect(fetchCallGraph).toHaveBeenCalled();
+    });
+
+    const sourceFeature = SYSTEM_MAP.features.find(f => f.name === 'harness-log');
+    const sharedCodeEntry = Object.entries(CALL_GRAPH.nodes).find(([, node]) =>
+      node.affects_features.includes(sourceFeature.name) &&
+      node.affects_features.includes('skill-browse')
+    );
+    expect(sharedCodeEntry).toBeDefined();
+    const [sharedCodePath] = sharedCodeEntry;
+
+    const sourceCard = Array.from(document.querySelectorAll('[data-feature-card]'))
+      .find(card => card.textContent.includes(sourceFeature.name));
+    await user.click(sourceCard.querySelector('[data-toggle], button'));
+
+    await waitFor(() => {
+      const relatedSection = sourceCard.querySelector('[data-related-features]');
+      expect(relatedSection).not.toBeNull();
+      expect(relatedSection.textContent).toContain('skill-browse');
+      expect(relatedSection.textContent).toContain(sharedCodePath.replace('backend/src/', ''));
+    });
+  });
+
+  it('related feature가 없으면 빈 상태가 표시되고 카드가 깨지지 않는다 (AC-5)', async () => {
+    // 관계가 없는 feature도 확장 UI가 깨지지 않고 명시적 빈 상태를 보여야 한다
+    const isolatedSystemMap = {
+      ...SYSTEM_MAP,
+      features: [
+        {
+          name: 'isolated-feature',
+          desc: '독립 기능',
+          flow: '',
+          req_slug: null,
+          routes: [],
+          tests: [],
+          tables: ['isolated_table'],
+          pages: ['/isolated'],
+        },
+      ],
+    };
+    fetchSystemMap.mockResolvedValue(isolatedSystemMap);
+    fetchCallGraph.mockResolvedValue({ version: 2, nodes: {} });
+
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<SystemStructurePage />);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-feature-card]').length).toBe(isolatedSystemMap.features.length);
+    });
+
+    const isolatedCard = document.querySelector('[data-feature-card]');
+    await user.click(isolatedCard.querySelector('[data-toggle], button'));
+
+    await waitFor(() => {
+      const relatedSection = isolatedCard.querySelector('[data-related-features]');
+      expect(relatedSection).not.toBeNull();
+      expect(relatedSection.textContent).toMatch(/연결된 feature 없음|related feature 없음|no related/i);
     });
   });
 });
