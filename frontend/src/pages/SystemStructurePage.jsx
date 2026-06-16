@@ -96,8 +96,49 @@ function DomainSection({ domain }) {
   );
 }
 
-function FeatureCard({ feature }) {
+function addReason(related, featureName, reason) {
+  if (!related.has(featureName)) related.set(featureName, new Set());
+  related.get(featureName).add(reason);
+}
+
+function getSharedItems(a = [], b = []) {
+  return a.filter(item => b.includes(item));
+}
+
+function buildRelatedFeatures(feature, features, callGraph) {
+  const related = new Map();
+
+  features.forEach(other => {
+    if (other.name === feature.name) return;
+
+    getSharedItems(feature.tables || [], other.tables || []).forEach(table => {
+      addReason(related, other.name, `table: ${table}`);
+    });
+
+    getSharedItems(feature.pages || [], other.pages || []).forEach(page => {
+      addReason(related, other.name, `page: ${page}`);
+    });
+  });
+
+  Object.entries(callGraph?.nodes || {}).forEach(([filePath, node]) => {
+    const affected = node.affects_features || [];
+    if (!affected.includes(feature.name)) return;
+
+    const shortPath = filePath.replace('backend/src/', '');
+    affected
+      .filter(name => name !== feature.name)
+      .filter(name => features.some(f => f.name === name))
+      .forEach(name => addReason(related, name, `code: ${shortPath}`));
+  });
+
+  return Array.from(related.entries())
+    .map(([name, reasons]) => ({ name, reasons: Array.from(reasons).sort() }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function FeatureCard({ feature, features, callGraph }) {
   const [expanded, setExpanded] = useState(false);
+  const relatedFeatures = buildRelatedFeatures(feature, features, callGraph);
 
   return (
     <div
@@ -223,6 +264,40 @@ function FeatureCard({ feature }) {
               </div>
             </div>
           )}
+
+          <div
+            data-related-features
+            className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20"
+          >
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
+              Related features
+            </p>
+            {relatedFeatures.length === 0 ? (
+              <p className="text-xs text-slate-400 dark:text-slate-600">
+                연결된 feature 없음
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {relatedFeatures.map(item => (
+                  <div key={item.name} className="flex flex-col gap-1">
+                    <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+                      {item.name}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.reasons.map(reason => (
+                        <span
+                          key={reason}
+                          className="inline-block px-2 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                        >
+                          {reason}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -244,12 +319,10 @@ export default function SystemStructurePage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'dependency') {
-      fetchCallGraph()
-        .then(setCallGraph)
-        .catch(() => setCallGraph({ nodes: {} }));
-    }
-  }, [activeTab]);
+    Promise.resolve(fetchCallGraph())
+      .then(graph => setCallGraph(graph || { nodes: {} }))
+      .catch(() => setCallGraph({ nodes: {} }));
+  }, []);
 
   if (loading) {
     return (
@@ -332,7 +405,12 @@ export default function SystemStructurePage() {
           </p>
         ) : (
           features.map((feature, i) => (
-            <FeatureCard key={`${feature.name}-${i}`} feature={feature} />
+            <FeatureCard
+              key={`${feature.name}-${i}`}
+              feature={feature}
+              features={features}
+              callGraph={callGraph}
+            />
           ))
         )}
       </div>
